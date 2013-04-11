@@ -16,7 +16,7 @@ angular.module('secureNgResource')
         _(fullActions).each(function(httpConf) {
             // FIXME This will stop working when token changes!
             // Update as needed from session, tracking resource by path
-            session.addAuthToRequest(httpConf);
+            session.updateRequest(httpConf);
         });
 
         // Escape the colon before a port number, it confuses ngResource

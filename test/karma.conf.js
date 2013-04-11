@@ -2,6 +2,8 @@ files = [
     JASMINE,
     JASMINE_ADAPTER,
     '../lib/angular.js',
+    '../lib/angular-cookies.js',
+    '../lib/angular-resource.js',
     'lib/angular/angular-mocks.js',
     '../build/secure-ng-resource.debug.js',
     'unit/*Spec.js'

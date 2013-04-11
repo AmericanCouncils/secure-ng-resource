@@ -2,8 +2,8 @@
 
 angular.module('secureNgResource')
 .factory('oauthPasswordSession', [
-'$q', '$http', 'sessionBase',
-function($q, $http, sessionBase) {
+'$http', 'sessionBase',
+function($http, sessionBase) {
     var OAuthPasswordSession = function (host, clientId, clientSecret, settings) {
         this.initialize(host, angular.extend(
             {},
@@ -67,20 +67,11 @@ function($q, $http, sessionBase) {
         },
 
         addAuthToRequest: function (httpConf) {
-            if (this.loggedIn()) {
-                if (!_.isObject(httpConf.headers)) { httpConf.headers = {}; }
-                httpConf.headers.Authorization = 'Bearer ' + this.state.accessToken;
-            }
-            httpConf.sessionCookieKey = this.cookieKey();
+            httpConf.headers.Authorization = 'Bearer ' + this.state.accessToken;
         },
 
-        handleHttpFailure: function (response) {
-            if (response.status === 401) {
-                this.sessionFailed(),
-                return $q.reject(response);
-            } else {
-                return response;
-            }
+        isAuthFailure: function (response) {
+            return (response.status === 401);
         }
     };
 

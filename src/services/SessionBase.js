@@ -2,8 +2,8 @@
 
 angular.module('secureNgResource')
 .factory('sessionBase', [
-'$location', '$cookieStore', 'sessionDictionary',
-function($location, $cookieStore, sessionDictionary) {
+'$q', '$location', '$cookieStore', 'sessionDictionary',
+function($q, $location, $cookieStore, sessionDictionary) {
     var DEFAULT_SETTINGS = {
         sessionName: 'oauth',
         loginPath: '/login',
@@ -15,7 +15,7 @@ function($location, $cookieStore, sessionDictionary) {
     var SessionBase = {
         login: pureAbstract,
         addAuthToRequest: pureAbstract,
-        handleHttpFailure: pureAbstract,
+        isAuthFailure: pureAbstract,
 
         initialize: function (settings) {
             this.settings = angular.extend(
@@ -74,15 +74,26 @@ function($location, $cookieStore, sessionDictionary) {
             $location.path(tgt).replace();
         },
 
-        sessionFailed: function () {
-            this.reset();
-            this.priorPath = $location.path();
-            $location.path(this.settings.loginPath).replace();
-        },
-
         cookieKey: function () {
             return this.settings.sessionName + '-' +
                 encodeURIComponent(this.settings.host);
+        },
+
+        updateRequest: function(httpConf) {
+            if (!_.isObject(httpConf.headers)) { httpConf.headers = {}; }
+            if (this.loggedIn()) { this.addAuthToRequest(); }
+            httpConf.sessionCookieKey = this.cookieKey();
+        },
+
+        handleHttpFailure: function(response) {
+            if (this.isAuthFailure(response)) {
+                this.reset();
+                this.priorPath = $location.path();
+                $location.path(this.settings.loginPath).replace();
+                return $q.reject(response);
+            } else {
+                return response;
+            }
         }
     };
 

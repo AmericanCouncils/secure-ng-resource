@@ -76,17 +76,14 @@ module.exports = function (grunt) {
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
         srcFiles: [
-            'src/*.js',
+            'src/namespace.js',
+            'src/httpIntercept.js',
             'src/services/*.js',
         ],
-        testFiles: { //unit & e2e goes here
-            karmaConfig: 'test/karma.conf.js',
-            //unit: ['test/unit/*.js']
-        },
         karma: {
             unit: {
               options: {
-                configFile: '<%= testFiles.karmaConfig %>'
+                configFile: 'test/karma.conf.js'
               }
             }
         },
@@ -96,8 +93,7 @@ module.exports = function (grunt) {
           },
           all: [
             'Gruntfile.js',
-            'src/*.js',
-            'src/**/*.js'
+            '<%= srcFiles %>'
           ]
         },
         concat: {
@@ -152,11 +148,11 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-contrib-clean');
     // Default task(s).
-    grunt.registerTask('test', ['jshint', 'karma']);
+    grunt.registerTask('test', ['jshint', 'concat:debug', 'karma']);
     grunt.registerTask('default', ['test']);
     //grunt.registerTask('test', ['karma']);
-    grunt.registerTask('debug', ['concat:debug', 'clean']);
-    grunt.registerTask('prod', ['concat:prod', 'uglify', 'clean']);
+    grunt.registerTask('debug', ['concat:debug']);
+    grunt.registerTask('prod', ['concat:prod', 'uglify']);
     grunt.registerTask('version', ['concat:version', 'uglify:version', 'clean']);
 
 };

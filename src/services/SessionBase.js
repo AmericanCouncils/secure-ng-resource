@@ -10,9 +10,9 @@ function($location, $cookieStore, sessionDictionary) {
         defaultPostLoginPath: '/'
     };
 
-    var pureAbstract = function () { throw "to be implemented by subclass"; }
+    var pureAbstract = function () { throw 'to be implemented by subclass'; };
 
-    SessionBase.prototype = {
+    var SessionBase = {
         login: pureAbstract,
         addAuthToRequest: pureAbstract,
         handleHttpFailure: pureAbstract,

@@ -152,7 +152,8 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-jshint');
     grunt.loadNpmTasks('grunt-contrib-clean');
     // Default task(s).
-    grunt.registerTask('default', ['concat', 'uglify', 'clean']);
+    grunt.registerTask('test', ['jshint', 'karma']);
+    grunt.registerTask('default', ['test']);
     //grunt.registerTask('test', ['karma']);
     grunt.registerTask('debug', ['concat:debug', 'clean']);
     grunt.registerTask('prod', ['concat:prod', 'uglify', 'clean']);

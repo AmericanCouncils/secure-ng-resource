@@ -4,7 +4,7 @@ angular.module('secureNgResource')
 .factory('oauthPasswordSession', [
 '$q', '$http', 'sessionBase',
 function($q, $http, sessionBase) {
-    OAuthPasswordSession = function (host, clientId, clientSecret, settings) {
+    var OAuthPasswordSession = function (host, clientId, clientSecret, settings) {
         this.initialize(host, angular.extend(
             {},
             settings,
@@ -13,7 +13,7 @@ function($q, $http, sessionBase) {
                 clientId: clientId,
                 clientSecret: clientSecret
             }
-        );
+        ));
     };
 
     OAuthPasswordSession.prototype = {
@@ -84,7 +84,7 @@ function($q, $http, sessionBase) {
         }
     };
 
-    angular.extend(OAuthPasswordSession.prototype, sessionBase.prototype);
+    angular.extend(OAuthPasswordSession.prototype, sessionBase);
 
     var OAuthPasswordSessionFactory =
     function(host, clientId, clientSecret, options) {

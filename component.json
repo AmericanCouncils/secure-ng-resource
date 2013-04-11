@@ -1,0 +1,5 @@
+{
+  "name": "secure-ng-resource",
+  "version": "0.1.0",
+  "main": ["./build/secure-ng-resource.min.js"]
+}

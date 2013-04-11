@@ -1,18 +1,12 @@
 'use strict';
 
-/* jasmine specs for services go here */
-describe('Dom Utility Service', function () {
+describe('secure-ng-resource', function () {
     beforeEach(module('secureNgResource'));
 
     var $scope, $httpBackend;
     beforeEach(inject(function ($rootScope, $injector) {
         $scope = $rootScope.$new();
-
         $httpBackend = $injector.get('$httpBackend');
-        $httpBackend.when('GET', 'http://localhost:9001/thing').
-            respond({'name': 'whatsit'});
-        $httpBackend.when('POST', 'http://localhost:9001/thing').
-            respond({'name': 'whatsit'});
     }));
 
     afterEach(function() {
@@ -26,24 +20,24 @@ describe('Dom Utility Service', function () {
             secureResourceFactory = secureResource;
         }));
 
-        var session, resource;
+        var resource, mockSession;
         beforeEach(function() {
-            session = {
+            mockSession = {
                 updateRequest: function(httpConf) {
                     httpConf.headers = {};
                     httpConf.headers.Authorization = 'foo';
                 },
-
-                getHost: function() {
-                    return "http://localhost:9001";
-                }
+                getHost: function() { return 'http://example.com:9001'; }
             };
-            resource = secureResourceFactory(session, '/thing');
+            resource = secureResourceFactory(mockSession, '/thing');
+
         });
 
         it('allows session to add headers to GET requests', function () {
+            $httpBackend.when('GET', 'http://example.com:9001/thing').
+                respond({'name': 'whatsit'});
             $httpBackend.expectGET(
-                'http://localhost:9001/thing',
+                'http://example.com:9001/thing',
                 {
                     // Default headers added by ngResource
                     Accept: 'application/json, text/plain, */*',
@@ -56,8 +50,10 @@ describe('Dom Utility Service', function () {
         });
 
         it('allows session to add headers to POST requests', function () {
+            $httpBackend.when('POST', 'http://example.com:9001/thing').
+                respond({'name': 'whatsit'});
             $httpBackend.expectPOST(
-                'http://localhost:9001/thing',
+                'http://example.com:9001/thing',
                 {a: 1},
                 {
                     // Default headers added by ngResource
@@ -71,4 +67,45 @@ describe('Dom Utility Service', function () {
             $httpBackend.flush();
         });
     });
+
+    /* FIXME It seems that the mock httpBackend does not simulate intercepts
+    describe('HTTP Interception', function () {
+        var mockSession, http;
+        beforeEach(inject(function(sessionDictionary, $http) {
+            http = $http;
+            mockSession = {
+                handleHttpFailure: function(resource) { return false; },
+                updateRequest: function(httpConf) {
+                    httpConf.sessionDictKey = 'someSession';
+                }
+            };
+            spyOn(mockSession, 'handleHttpFailure');
+            sessionDictionary['someSession'] = mockSession;
+        }));
+
+        it('notifies attached session on failed HTTP requests', function () {
+            $httpBackend.when('GET', 'http://example.com:9001/matrix').
+                respond(401, {reason: 'You took the blue pill'});
+            http({method: 'GET', url: 'http://example.com:9001/matrix'});
+            $httpBackend.flush();
+            expect(mockSession.handleHttpFailure).toHaveBeenCalled();
+        });
+
+        it('does not notify if session is not attached', function () {
+            $httpBackend.when('GET', 'http://example.com:9001/theclub').
+                respond(401, {reason: 'You just aren\'t cool enough'});
+            http({method: 'GET', url: 'http://example.com:9001/theclub'});
+            $httpBackend.flush();
+            expect(mockSession.handleHttpFailure).not.toHaveBeenCalled();
+        });
+
+        it('does not notify on successful HTTP requests', function () {
+            $httpBackend.when('GET', 'http://example.com:9001/bunnies').
+                respond({actions: ['hop', 'hop', 'hop']});
+            http({method: 'GET', url: 'http://example.com:9001/bunnies'});
+            $httpBackend.flush();
+            expect(mockSession.handleHttpFailure).not.toHaveBeenCalled();
+        });
+    });
+    */
 });

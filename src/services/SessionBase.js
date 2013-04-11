@@ -82,7 +82,7 @@ function($q, $location, $cookieStore, sessionDictionary) {
         updateRequest: function(httpConf) {
             if (!_.isObject(httpConf.headers)) { httpConf.headers = {}; }
             if (this.loggedIn()) { this.addAuthToRequest(); }
-            httpConf.sessionCookieKey = this.cookieKey();
+            httpConf.sessionDictKey = this.cookieKey();
         },
 
         handleHttpFailure: function(response) {

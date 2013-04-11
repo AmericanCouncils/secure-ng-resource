@@ -10,7 +10,7 @@ function($httpProvider, sessionDictionary) {
                 return response;
             }, function (response)  {
                 // Failure
-                var ses = sessionDictionary[response.config.sessionCookieKey];
+                var ses = sessionDictionary[response.config.sessionDictKey];
                 if (ses) {
                     return ses.handleHttpFailure(response);
                 } else {

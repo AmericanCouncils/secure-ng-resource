@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/11/2013 13:56
+* Compiled At: 04/11/2013 14:40
 ***********************************************/
 (function(window) {
 'use strict';
@@ -121,7 +121,6 @@ angular.module('secureNgResource')
         // Escape the colon before a port number, it confuses ngResource
         var host = session.getHost().replace(/(:\d+)$/g, '\\$1');
         var res = $resource(host + path, paramDefaults, fullActions);
-        res.session = session;
 
         return res;
     };
@@ -211,7 +210,7 @@ function($q, $location, $cookieStore, sessionDictionary) {
         updateRequest: function(httpConf) {
             if (!_.isObject(httpConf.headers)) { httpConf.headers = {}; }
             if (this.loggedIn()) { this.addAuthToRequest(); }
-            httpConf.sessionCookieKey = this.cookieKey();
+            httpConf.sessionDictKey = this.cookieKey();
         },
 
         handleHttpFailure: function(response) {

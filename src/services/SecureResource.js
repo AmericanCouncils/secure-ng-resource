@@ -22,7 +22,6 @@ angular.module('secureNgResource')
         // Escape the colon before a port number, it confuses ngResource
         var host = session.getHost().replace(/(:\d+)$/g, '\\$1');
         var res = $resource(host + path, paramDefaults, fullActions);
-        res.session = session;
 
         return res;
     };

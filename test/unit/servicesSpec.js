@@ -5,10 +5,14 @@ describe('Dom Utility Service', function () {
     beforeEach(module('secureNgResource'));
 
     var $scope, $httpBackend, secureResourceFactory;
-    beforeEach(inject(function ($rootScope, $injector) {
+    beforeEach(inject(function ($rootScope, secureResource, $injector) {
         $scope = $rootScope.$new();
+        secureResourceFactory = secureResource;
+
         $httpBackend = $injector.get('$httpBackend');
         $httpBackend.when('GET', 'http://localhost:9001/thing').
+            respond({'name': 'whatsit'});
+        $httpBackend.when('POST', 'http://localhost:9001/thing').
             respond({'name': 'whatsit'});
     }));
 
@@ -18,10 +22,6 @@ describe('Dom Utility Service', function () {
     });
 
     describe('SecureResource', function () {
-        beforeEach(inject(function (secureResource) {
-            secureResourceFactory = secureResource;
-        }));
-
         var session, resource;
         beforeEach(function() {
             session = {
@@ -49,6 +49,22 @@ describe('Dom Utility Service', function () {
                 }
             );
             resource.query();
+            $httpBackend.flush();
+        });
+
+        it('allows session it add headers to POST requests', function () {
+            $httpBackend.expectPOST(
+                'http://localhost:9001/thing',
+                {a: 1},
+                {
+                    // Default headers added by ngResource
+                    Accept: 'application/json, text/plain, */*',
+                    'Content-Type': 'application/json;charset=utf-8',
+                    // Header added by session
+                    Authorization: 'foo'
+                }
+            );
+            resource.save({a: 1});
             $httpBackend.flush();
         });
     });

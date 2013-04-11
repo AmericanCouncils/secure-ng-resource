@@ -32,7 +32,7 @@ function($http, sessionBase) {
             }).then(function(response) {
                 if (
                 response.status === 200 &&
-                _(response.data).has('access_token')
+                angular.isString(response.data['access_token'])
                 ) {
                     // Successful login
                     if (loginCallbacks.accepted) { loginCallbacks.accepted(); }
@@ -46,7 +46,6 @@ function($http, sessionBase) {
                     this.loginSucceeded();
                 } else if (
                 response.status === 400 &&
-                _(response.data).has('error') &&
                 response.data.error === 'invalid_grant'
                 ) {
                     // Bad login
@@ -57,7 +56,7 @@ function($http, sessionBase) {
                         var msg = 'HTTP Status ' + response.status;
                         if (response.status === 0) {
                             msg = 'Unable to connect to authentication server';
-                        } else if ( _(response.data).has('error_description')) {
+                        } else if (response.data['error_description']) {
                             msg = 'OAuth:' + response.data['error_description'];
                         }
                         loginCallbacks.error(msg);

@@ -13,7 +13,7 @@ angular.module('secureNgResource')
 
     return function(session, path, paramDefaults, actions) {
         var fullActions = angular.extend({}, DEFAULT_ACTIONS, actions);
-        _(fullActions).each(function(httpConf) {
+        angular.forEach(fullActions, function(httpConf) {
             // FIXME This will stop working when token changes!
             // Update as needed from session, tracking resource by path
             session.updateRequest(httpConf);

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/11/2013 13:32
+* Compiled At: 04/11/2013 13:50
 ***********************************************/
 (function(window) {
 'use strict';
@@ -45,7 +45,7 @@ function($http, sessionBase) {
             }).then(function(response) {
                 if (
                 response.status === 200 &&
-                _(response.data).has('access_token')
+                angular.isString(response.data['access_token'])
                 ) {
                     // Successful login
                     if (loginCallbacks.accepted) { loginCallbacks.accepted(); }
@@ -59,7 +59,6 @@ function($http, sessionBase) {
                     this.loginSucceeded();
                 } else if (
                 response.status === 400 &&
-                _(response.data).has('error') &&
                 response.data.error === 'invalid_grant'
                 ) {
                     // Bad login
@@ -70,7 +69,7 @@ function($http, sessionBase) {
                         var msg = 'HTTP Status ' + response.status;
                         if (response.status === 0) {
                             msg = 'Unable to connect to authentication server';
-                        } else if ( _(response.data).has('error_description')) {
+                        } else if (response.data['error_description']) {
                             msg = 'OAuth:' + response.data['error_description'];
                         }
                         loginCallbacks.error(msg);
@@ -113,7 +112,7 @@ angular.module('secureNgResource')
 
     return function(session, path, paramDefaults, actions) {
         var fullActions = angular.extend({}, DEFAULT_ACTIONS, actions);
-        _(fullActions).each(function(httpConf) {
+        angular.forEach(fullActions, function(httpConf) {
             // FIXME This will stop working when token changes!
             // Update as needed from session, tracking resource by path
             session.updateRequest(httpConf);

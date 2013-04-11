@@ -108,4 +108,32 @@ describe('secure-ng-resource', function () {
         });
     });
     */
+
+    describe('Session', function() {
+        var sessionFactory, ses, auth;
+        beforeEach(inject(function(session) {
+            sessionFactory = session;
+            auth = {
+               checkLogin: function(host, creds, handler) {},
+               addAuthToRequest: function(httpConf, state) {},
+               isAuthFailure: function(response) {}
+            };
+            ses = sessionFactory('localhost', auth);
+        }));
+
+        it('has the correct initial state by default', function() {
+            expect(ses.getUserName()).toBeUndefined();
+            expect(ses.loggedIn()).toEqual(false);
+            expect(ses.cookieKey()).toEqual("angular-localhost");
+        });
+
+        it('accepts logins which the authenticator approves', function() {
+            spyOn(auth, "checkLogin").andCallFake(function(host, creds, handler) {
+                handler({ status: 'accepted', newState: { user: creds.user } });
+            });
+            ses.login({user: 'alice', pass: 'swordfish'});
+            expect(ses.getUserName()).toEqual('alice');
+            expect(ses.loggedIn()).toEqual(true);
+        });
+    });
 });

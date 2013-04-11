@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/11/2013 14:40
+* Compiled At: 04/11/2013 16:42
 ***********************************************/
 (function(window) {
 'use strict';
@@ -14,72 +14,77 @@ angular.module('secureNgResource', [
 'use strict';
 
 angular.module('secureNgResource')
-.factory('oauthPasswordSession', [
-'$http', 'sessionBase',
-function($http, sessionBase) {
-    var OAuthPasswordSession = function (host, clientId, clientSecret, settings) {
-        this.initialize(host, angular.extend(
-            {},
-            settings,
-            {
-                host: host,
-                clientId: clientId,
-                clientSecret: clientSecret
-            }
-        ));
+.factory('oauthPasswordAuth', [
+'$http',
+function($http) {
+    var PasswordOAuth = function (clientId, clientSecret) {
+        this.clientId = clientId;
+        this.clientSecret = clientSecret;
     };
 
-    OAuthPasswordSession.prototype = {
-        login: function (user, pass, loginCallbacks) {
+    var encodeURIForm = function (params) {
+        var s = '';
+        angular.forEach(params, function(val, key) {
+            if (s.length > 0) { s += '&'; }
+            s += key + '=' + encodeURIComponent(val);
+        });
+        return s;
+    };
+
+    PasswordOAuth.prototype = {
+        login: function (host, credentials, handler) {
             $http({
                 method: 'POST',
-                url: this.settings.host + '/oauth/v2/token',
+                url: host + '/oauth/v2/token',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                data: $.param({
-                    'client_id': this.settings.clientId,
-                    'client_secret': this.settings.clientSecret,
+                data: encodeURIForm({
+                    'client_id': this.clientId,
+                    'client_secret': this.clientSecret,
                     'grant_type': 'password',
-                    'username': user,
-                    'password': pass
+                    'username': credentials.user,
+                    'password': credentials.pass
                 })
             }).then(function(response) {
                 if (
                 response.status === 200 &&
                 angular.isString(response.data['access_token'])
                 ) {
-                    // Successful login
-                    if (loginCallbacks.accepted) { loginCallbacks.accepted(); }
-                    this.state = {
-                        user: user,
-                        accessToken: response.data['access_token'],
-                        accessTokenExpires:
-                            new Date().getTime() + response.data['expires_in'],
-                        refreshToken: response.data['refresh_token']
-                    };
-                    this.loginSucceeded();
+                    var d = response.data;
+                    handler({
+                        status: 'accepted',
+                        newState: {
+                            user: credentials.user,
+                            accessToken: d['access_token'],
+                            accessTokenExpires:
+                                new Date().getTime() + d['expires_in'],
+                            refreshToken: d['refresh_token']
+                        }
+                    });
                 } else if (
                 response.status === 400 &&
                 response.data.error === 'invalid_grant'
                 ) {
-                    // Bad login
-                    if (loginCallbacks.denied) { loginCallbacks.denied(); }
+                    handler({
+                        status: 'denied',
+                        msg: 'Invalid username or password'
+                    });
                 } else {
-                    // Unknown error
-                    if (loginCallbacks.error) {
-                        var msg = 'HTTP Status ' + response.status;
-                        if (response.status === 0) {
-                            msg = 'Unable to connect to authentication server';
-                        } else if (response.data['error_description']) {
-                            msg = 'OAuth:' + response.data['error_description'];
-                        }
-                        loginCallbacks.error(msg);
+                    var msg = 'HTTP Status ' + response.status;
+                    if (response.status === 0) {
+                        msg = 'Unable to connect to authentication server';
+                    } else if (response.data['error_description']) {
+                        msg = 'OAuth:' + response.data['error_description'];
                     }
+                    handler({
+                        status: 'error',
+                        msg: msg
+                    });
                 }
             });
         },
 
-        addAuthToRequest: function (httpConf) {
-            httpConf.headers.Authorization = 'Bearer ' + this.state.accessToken;
+        addAuthToRequest: function (httpConf, state) {
+            httpConf.headers.Authorization = 'Bearer ' + state.accessToken;
         },
 
         isAuthFailure: function (response) {
@@ -87,14 +92,10 @@ function($http, sessionBase) {
         }
     };
 
-    angular.extend(OAuthPasswordSession.prototype, sessionBase);
-
-    var OAuthPasswordSessionFactory =
-    function(host, clientId, clientSecret, options) {
-        return new OAuthPasswordSession(host, clientId, clientSecret, options);
+    var PasswordOAuthFactory = function(clientId, clientSecret) {
+        return new PasswordOAuth(clientId, clientSecret);
     };
-
-    return OAuthPasswordSessionFactory;
+    return PasswordOAuthFactory;
 }]);
 
 'use strict';
@@ -129,42 +130,37 @@ angular.module('secureNgResource')
 'use strict';
 
 angular.module('secureNgResource')
-.factory('sessionBase', [
+.factory('session', [
 '$q', '$location', '$cookieStore', 'sessionDictionary',
 function($q, $location, $cookieStore, sessionDictionary) {
     var DEFAULT_SETTINGS = {
-        sessionName: 'oauth',
+        sessionName: 'angular',
         loginPath: '/login',
         defaultPostLoginPath: '/'
     };
 
-    var pureAbstract = function () { throw 'to be implemented by subclass'; };
+    var Session = function (host, auth, settings) {
+        this.host = host;
+        this.auth = auth;
+        this.settings = angular.extend(
+            {},
+            DEFAULT_SETTINGS,
+            settings
+        );
 
-    var SessionBase = {
-        login: pureAbstract,
-        addAuthToRequest: pureAbstract,
-        isAuthFailure: pureAbstract,
+        this.priorPath = null;
+        this.state = null;
 
-        initialize: function (settings) {
-            this.settings = angular.extend(
-                {},
-                DEFAULT_SETTINGS,
-                settings
-            );
-
-            this.priorPath = null;
-            this.state = null;
-
-            sessionDictionary[this.cookieKey()] = this;
-
-            var cookie = $cookieStore.get(this.cookieKey());
-            if (cookie) {
-                this.state = cookie;
-            } else {
-                this.reset();
-            }
-        },
-
+        sessionDictionary[this.cookieKey()] = this;
+        var cookie = $cookieStore.get(this.cookieKey());
+        if (cookie) {
+            this.state = cookie;
+        } else {
+            this.reset();
+        }
+    };
+    
+    Session.prototype = {
         getUserName: function () {
             if (this.loggedIn()) {
                 return this.state.user;
@@ -173,11 +169,23 @@ function($q, $location, $cookieStore, sessionDictionary) {
 
         loggedIn: function () {
             // TODO Check for timeout
-            return !_.isNull(this.state);
+            return this.state !== null;
         },
 
-        getHost: function () {
-            return this.settings.host;
+        login: function (credentials, callbacks) {
+            this.auth.checkLogin(this.host, credentials, function(result) {
+                if (angular.isObject(callbacks) && callbacks[result.status]) {
+                    callbacks[result.status](result);
+                }
+
+                if (result.status === 'accepted') {
+                    this.state = result.newState;
+                    $cookieStore.put(this.cookieKey(), this.state);
+                    var tgt = this.settings.defaultPostLoginPath;
+                    if (this.priorPath !== null) { tgt = this.priorPath; }
+                    $location.path(tgt).replace();
+                }
+            }.bind(this));
         },
 
         logout: function () {
@@ -192,29 +200,21 @@ function($q, $location, $cookieStore, sessionDictionary) {
             $cookieStore.remove(this.cookieKey());
         },
 
-        loginSucceeded: function () {
-            $cookieStore.put(this.cookieKey(), this.state);
-
-            var tgt = this.settings.defaultPostLoginPath;
-            if (!_.isNull(this.priorPath)) {
-                tgt = this.priorPath;
-            }
-            $location.path(tgt).replace();
-        },
-
         cookieKey: function () {
             return this.settings.sessionName + '-' +
-                encodeURIComponent(this.settings.host);
+                encodeURIComponent(this.host);
         },
 
         updateRequest: function(httpConf) {
-            if (!_.isObject(httpConf.headers)) { httpConf.headers = {}; }
-            if (this.loggedIn()) { this.addAuthToRequest(); }
+            if (!httpConf.headers) { httpConf.headers = {}; }
+            if (this.loggedIn()) {
+                this.auth.addAuthToRequest(httpConf, this.state);
+            }
             httpConf.sessionDictKey = this.cookieKey();
         },
 
         handleHttpFailure: function(response) {
-            if (this.isAuthFailure(response)) {
+            if (this.auth.isAuthFailure(response)) {
                 this.reset();
                 this.priorPath = $location.path();
                 $location.path(this.settings.loginPath).replace();
@@ -225,7 +225,10 @@ function($q, $location, $cookieStore, sessionDictionary) {
         }
     };
 
-    return SessionBase;
+    var SessionFactory = function(host, auth, settings) {
+        return new Session(host, auth, settings);
+    };
+    return SessionFactory;
 }]);
 
 'use strict';

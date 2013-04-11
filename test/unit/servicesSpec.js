@@ -4,10 +4,9 @@
 describe('Dom Utility Service', function () {
     beforeEach(module('secureNgResource'));
 
-    var $scope, $httpBackend, secureResourceFactory;
-    beforeEach(inject(function ($rootScope, secureResource, $injector) {
+    var $scope, $httpBackend;
+    beforeEach(inject(function ($rootScope, $injector) {
         $scope = $rootScope.$new();
-        secureResourceFactory = secureResource;
 
         $httpBackend = $injector.get('$httpBackend');
         $httpBackend.when('GET', 'http://localhost:9001/thing').
@@ -22,6 +21,11 @@ describe('Dom Utility Service', function () {
     });
 
     describe('SecureResource', function () {
+        var secureResourceFactory;
+        beforeEach(inject(function(secureResource) {
+            secureResourceFactory = secureResource;
+        }));
+
         var session, resource;
         beforeEach(function() {
             session = {
@@ -34,7 +38,6 @@ describe('Dom Utility Service', function () {
                     return "http://localhost:9001";
                 }
             };
-
             resource = secureResourceFactory(session, '/thing');
         });
 
@@ -52,7 +55,7 @@ describe('Dom Utility Service', function () {
             $httpBackend.flush();
         });
 
-        it('allows session it add headers to POST requests', function () {
+        it('allows session to add headers to POST requests', function () {
             $httpBackend.expectPOST(
                 'http://localhost:9001/thing',
                 {a: 1},

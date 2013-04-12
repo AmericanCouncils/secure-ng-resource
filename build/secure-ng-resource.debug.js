@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 10:45
+* Compiled At: 04/12/2013 11:05
 ***********************************************/
 (function(window) {
 'use strict';

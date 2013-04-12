@@ -72,7 +72,7 @@ describe('secure-ng-resource', function () {
         var mockSession, http;
         beforeEach(inject(function(sessionDictionary, $http) {
             http = $http;
-            mockSession = jasmine.createSpyObj("session", ["handleHttpFailure"]);
+            mockSession = jasmine.createSpyObj('session', ['handleHttpFailure']);
             sessionDictionary['someSession'] = mockSession;
         }));
 
@@ -123,6 +123,14 @@ describe('secure-ng-resource', function () {
             };
             ses = sessionFactory('localhost', auth);
             loc = $location;
+            spyOn(loc, 'path').andCallFake(function(a) {
+                if (a) {
+                    return loc; // Path set
+                } else {
+                    return '/some/resource'; // Path get
+                }
+            });
+            spyOn(loc, 'replace').andReturn(loc);
         }));
 
         var checkLoginAcceptAll = function(host, creds, handler) {
@@ -130,49 +138,98 @@ describe('secure-ng-resource', function () {
         };
 
         var checkLoginDenyAll = function(host, creds, handler) {
-            handler({ status: 'denied', msg: "And stay out" });
+            handler({ status: 'denied', msg: 'And stay out' });
         };
 
         it('has the correct initial state by default', function() {
             expect(ses.getUserName()).toBeUndefined();
             expect(ses.loggedIn()).toEqual(false);
-            expect(ses.cookieKey()).toEqual("angular-localhost");
+            expect(ses.cookieKey()).toEqual('angular-localhost');
         });
 
-        it('allows cookie key to be overridden', function () {
+        it('can use a custom cookie key', function () {
             var ses2 = sessionFactory('bar', auth, {sessionName: 'foo'});
-            expect(ses2.cookieKey()).toEqual("foo-bar");
+            expect(ses2.cookieKey()).toEqual('foo-bar');
         });
 
         it('accepts logins which the authenticator approves', function() {
-            spyOn(auth, "checkLogin").andCallFake(checkLoginAcceptAll);
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginAcceptAll);
             ses.login({user: 'alice', pass: 'swordfish'});
             expect(ses.getUserName()).toEqual('alice');
             expect(ses.loggedIn()).toEqual(true);
         });
 
         it('denies logins which the authenticator does not approve', function() {
-            spyOn(auth, "checkLogin").andCallFake(checkLoginDenyAll);
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginDenyAll);
             ses.login({user: 'alice', pass: 'swordfish'});
             expect(ses.getUserName()).toBeUndefined();
             expect(ses.loggedIn()).toEqual(false);
         });
 
         it('can drop the session state', function() {
-            spyOn(auth, "checkLogin").andCallFake(checkLoginAcceptAll);
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginAcceptAll);
             ses.login({user: 'alice', pass: 'swordfish'});
             ses.reset();
             expect(ses.getUserName()).toBeUndefined();
             expect(ses.loggedIn()).toEqual(false);
         });
 
-        it('resets location to / after a successful login by default', function () {
-            spyOn(auth, "checkLogin").andCallFake(checkLoginAcceptAll);
-            spyOn(loc, "path").andReturn(loc);
-            spyOn(loc, "replace").andReturn(loc);
+        it('drops session state after logout', function() {
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginAcceptAll);
             ses.login({user: 'alice', pass: 'swordfish'});
-            expect(loc.path).toHaveBeenCalledWith("/");
+            ses.logout();
+            expect(ses.getUserName()).toBeUndefined();
+            expect(ses.loggedIn()).toEqual(false);
+        });
+
+        it('resets location to / after a successful login by default', function () {
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginAcceptAll);
+            ses.login({user: 'alice', pass: 'swordfish'});
+            expect(loc.path).toHaveBeenCalledWith('/');
             expect(loc.replace).toHaveBeenCalled();
+        });
+
+        it('can reset after login to a custom path', function () {
+            var ses2 = sessionFactory('bar', auth, {defaultPostLoginPath: '/foo'});
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginAcceptAll);
+            ses2.login({user: 'alice', pass: 'swordfish'});
+            expect(loc.path).toHaveBeenCalledWith('/foo');
+            expect(loc.replace).toHaveBeenCalled();
+        });
+
+        it('resets to /login after an http auth failure by default', function () {
+            spyOn(auth, 'isAuthFailure').andReturn(true);
+            ses.handleHttpFailure();
+            expect(loc.path).toHaveBeenCalledWith('/login');
+            expect(loc.replace).toHaveBeenCalled();
+        });
+
+        it('resets back to original pre-reset path after login', function() {
+            spyOn(auth, 'isAuthFailure').andReturn(true);
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginAcceptAll);
+            ses.handleHttpFailure();
+            ses.login({user: 'alice', pass: 'swordfish'});
+            expect(loc.path).toHaveBeenCalledWith('/some/resource');
+            expect(loc.replace).toHaveBeenCalled();
+        });
+
+        it('redirects to /login after logout by default', function () {
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginAcceptAll);
+            ses.login({user: 'alice', pass: 'swordfish'});
+            expect(loc.replace.calls.length).toEqual(1);
+            ses.logout();
+            expect(loc.path).toHaveBeenCalledWith('/login');
+            expect(loc.replace.calls.length).toEqual(1);
+        });
+
+        it('can redirect to a custom path after logout', function () {
+            var ses2 = sessionFactory('bar', auth, {loginPath: '/welcome'});
+            spyOn(auth, 'checkLogin').andCallFake(checkLoginAcceptAll);
+            ses2.login({user: 'alice', pass: 'swordfish'});
+            expect(loc.replace.calls.length).toEqual(1);
+            ses2.logout();
+            expect(loc.path).toHaveBeenCalledWith('/welcome');
+            expect(loc.replace.calls.length).toEqual(1);
         });
     });
 });

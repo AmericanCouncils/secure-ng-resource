@@ -71,12 +71,12 @@ function($http) {
             });
         },
 
-        addAuthToRequestConf: function (httpConf, state) {
-            httpConf.headers.Authorization = 'Bearer ' + state.accessToken;
+        checkResponse: function (response) {
+            return (response.status !== 401);
         },
 
-        isAuthFailure: function (response) {
-            return (response.status === 401);
+        addAuthToRequestConf: function (httpConf, state) {
+            httpConf.headers.Authorization = 'Bearer ' + state.accessToken;
         }
     };
 

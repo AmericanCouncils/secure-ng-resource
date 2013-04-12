@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 14:58
+* Compiled At: 04/12/2013 15:17
 ***********************************************/
 (function(window) {
 'use strict';
@@ -84,12 +84,12 @@ function($http) {
             });
         },
 
-        addAuthToRequestConf: function (httpConf, state) {
-            httpConf.headers.Authorization = 'Bearer ' + state.accessToken;
+        checkResponse: function (response) {
+            return (response.status !== 401);
         },
 
-        isAuthFailure: function (response) {
-            return (response.status === 401);
+        addAuthToRequestConf: function (httpConf, state) {
+            httpConf.headers.Authorization = 'Bearer ' + state.accessToken;
         }
     };
 
@@ -240,8 +240,8 @@ function($q, $location, $cookieStore) {
             });
         },
 
-        handleHttpFailure: function(response) {
-            if (this.auth.isAuthFailure(response)) {
+        handleHttpResponse: function(response) {
+            if (!this.auth.checkResponse(response)) {
                 this.reset();
                 this.priorPath = $location.path();
                 $location.path(this.settings.loginPath).replace();
@@ -270,20 +270,19 @@ function($httpProvider) {
     $httpProvider.responseInterceptors.push([
     'session',
     function(session) {
-        return function(promise) {
-            return promise.then(function (response) {
-                // Success
+        var responder = function (response) {
+            // Failure
+            var ses = session.dictionary[response.config.sessionDictKey];
+            if (ses) {
+                return ses.handleHttpResponse(response);
+            } else {
+                // Let someone else deal with this problem
                 return response;
-            }, function (response)  {
-                // Failure
-                var ses = session.dictionary[response.config.sessionDictKey];
-                if (ses) {
-                    return ses.handleHttpFailure(response);
-                } else {
-                    // Let someone else deal with this problem
-                    return response;
-                }
-            });
+            }
+        };
+
+        return function(promise) {
+            return promise.then(responder, responder);
         };
     }]);
 }]);

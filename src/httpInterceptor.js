@@ -9,20 +9,19 @@ function($httpProvider) {
     $httpProvider.responseInterceptors.push([
     'session',
     function(session) {
-        return function(promise) {
-            return promise.then(function (response) {
-                // Success
+        var responder = function (response) {
+            // Failure
+            var ses = session.dictionary[response.config.sessionDictKey];
+            if (ses) {
+                return ses.handleHttpResponse(response);
+            } else {
+                // Let someone else deal with this problem
                 return response;
-            }, function (response)  {
-                // Failure
-                var ses = session.dictionary[response.config.sessionDictKey];
-                if (ses) {
-                    return ses.handleHttpFailure(response);
-                } else {
-                    // Let someone else deal with this problem
-                    return response;
-                }
-            });
+            }
+        };
+
+        return function(promise) {
+            return promise.then(responder, responder);
         };
     }]);
 }]);

@@ -110,8 +110,8 @@ function($q, $location, $cookieStore) {
             });
         },
 
-        handleHttpFailure: function(response) {
-            if (this.auth.isAuthFailure(response)) {
+        handleHttpResponse: function(response) {
+            if (!this.auth.checkResponse(response)) {
                 this.reset();
                 this.priorPath = $location.path();
                 $location.path(this.settings.loginPath).replace();

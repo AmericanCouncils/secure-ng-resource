@@ -68,14 +68,26 @@ describe('secure-ng-resource', function () {
         var mockSession, http;
         beforeEach(inject(function(session, $http) {
             http = $http;
-            mockSession = jasmine.createSpyObj('session', ['handleHttpFailure']);
+            mockSession = jasmine.createSpyObj('session', ['handleHttpResponse']);
             session.dictionary['someSession'] = mockSession;
         }));
         afterEach(inject(function(session) {
             delete session.dictionary['someSession'];
         }));
 
-        it('notifies attached session on failed HTTP requests', function () {
+        it('notifies attached session on HTTP responses', function () {
+            $httpBackend.when('GET', 'http://example.com:9001/bunnies').
+                respond({actions: ['hop', 'hop', 'hop']});
+            http({
+                method: 'GET',
+                url: 'http://example.com:9001/bunnies',
+                sessionDictKey: 'someSession'
+            });
+            $httpBackend.flush();
+            expect(mockSession.handleHttpResponse).toHaveBeenCalled();
+        });
+
+        it('notifies attached session on negative HTTP responses', function () {
             $httpBackend.when('GET', 'http://example.com:9001/matrix').
                 respond(401, {reason: 'You took the blue pill'});
             http({
@@ -84,7 +96,7 @@ describe('secure-ng-resource', function () {
                 sessionDictKey: 'someSession'
             });
             $httpBackend.flush();
-            expect(mockSession.handleHttpFailure).toHaveBeenCalled();
+            expect(mockSession.handleHttpResponse).toHaveBeenCalled();
         });
 
         it('does not notify if session is not attached', function () {
@@ -95,19 +107,7 @@ describe('secure-ng-resource', function () {
                 url: 'http://example.com:9001/theclub'
             });
             $httpBackend.flush();
-            expect(mockSession.handleHttpFailure).not.toHaveBeenCalled();
-        });
-
-        it('does not notify on successful HTTP requests', function () {
-            $httpBackend.when('GET', 'http://example.com:9001/bunnies').
-                respond({actions: ['hop', 'hop', 'hop']});
-            http({
-                method: 'GET',
-                url: 'http://example.com:9001/bunnies',
-                sessionDictKey: 'someSession'
-            });
-            $httpBackend.flush();
-            expect(mockSession.handleHttpFailure).not.toHaveBeenCalled();
+            expect(mockSession.handleHttpResponse).not.toHaveBeenCalled();
         });
     });
 
@@ -127,14 +127,14 @@ describe('secure-ng-resource', function () {
                     httpConf.headers.Authorization = "foo";
                 },
 
-                isAuthFailureResult: false,
-                isAuthFailure: function(response) {
-                    return this.isAuthFailureResult;
+                checkResponseResult: true,
+                checkResponse: function(response) {
+                    return this.checkResponseResult;
                 }
             };
             spyOn(auth, 'checkLogin').andCallThrough();
             spyOn(auth, 'addAuthToRequestConf').andCallThrough();
-            spyOn(auth, 'isAuthFailure').andCallThrough();
+            spyOn(auth, 'checkResponse').andCallThrough();
 
             sessionFactory = session;
             ses = sessionFactory('localhost', auth);
@@ -202,9 +202,10 @@ describe('secure-ng-resource', function () {
         });
 
         it('clears session, resets to login page after http auth failure', function () {
-            auth.isAuthFailureResult = true;
+            auth.checkResponseResult = false;
             spyOn(ses, 'reset');
-            ses.handleHttpFailure({});
+            ses.handleHttpResponse({});
+            expect(auth.checkResponse).toHaveBeenCalled();
             expect(ses.reset).toHaveBeenCalled();
             expect(loc.path).toHaveBeenCalledWith('/login');
             expect(loc.replace).toHaveBeenCalled();
@@ -212,15 +213,16 @@ describe('secure-ng-resource', function () {
 
         it('does not clear session or reset to login page on non-auth fail', function () {
             spyOn(ses, 'reset');
-            ses.handleHttpFailure({});
+            ses.handleHttpResponse({});
+            expect(auth.checkResponse).toHaveBeenCalled();
             expect(ses.reset).not.toHaveBeenCalled();
             expect(loc.path).not.toHaveBeenCalled();
             expect(loc.replace).not.toHaveBeenCalled();
         });
 
         it('resets back to original pre-reset path after login', function() {
-            auth.isAuthFailureResult = true;
-            ses.handleHttpFailure();
+            auth.checkResponseResult = false;
+            ses.handleHttpResponse();
             ses.login({user: 'alice', pass: 'swordfish'});
             expect(loc.path).toHaveBeenCalledWith('/some/resource');
             expect(loc.replace).toHaveBeenCalled();
@@ -395,10 +397,10 @@ describe('secure-ng-resource', function () {
         });
 
         it('only treats HTTP responses with 401 status as auth fails', function () {
-            expect(auth.isAuthFailure({status: 401})).toBeTruthy();
-            expect(auth.isAuthFailure({status: 200})).toBeFalsy();
-            expect(auth.isAuthFailure({status: 405})).toBeFalsy();
-            expect(auth.isAuthFailure({status: 500})).toBeFalsy();
+            expect(auth.checkResponse({status: 401})).toBeFalsy();
+            expect(auth.checkResponse({status: 200})).toBeTruthy();
+            expect(auth.checkResponse({status: 405})).toBeTruthy();
+            expect(auth.checkResponse({status: 500})).toBeTruthy();
         });
     });
 });

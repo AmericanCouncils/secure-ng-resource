@@ -121,20 +121,12 @@ module.exports = function (grunt) {
             debug: {
                 src: ['<%= srcFiles %>'],
                 dest: 'build/<%= pkg.name %>.debug.js'
-            },
-            version: {
-                src: ['<%= srcFiles %>'],
-                dest: '<%= pkg.name %>-<%= pkg.version %>.debug.js'
             }
         },
         uglify: {
             build: {
                 src: 'build/<%= pkg.name %>.js',
                 dest: 'build/<%= pkg.name %>.min.js'
-            },
-            version: {
-                src: '<%= pkg.name %>-<%= pkg.version %>.debug.js',
-                dest: '<%= pkg.name %>-<%= pkg.version %>.min.js'
             }
         }
     });
@@ -153,6 +145,5 @@ module.exports = function (grunt) {
     //grunt.registerTask('test', ['karma']);
     grunt.registerTask('debug', ['concat:debug']);
     grunt.registerTask('prod', ['concat:prod', 'uglify']);
-    grunt.registerTask('version', ['concat:version', 'uglify:version', 'clean']);
 
 };

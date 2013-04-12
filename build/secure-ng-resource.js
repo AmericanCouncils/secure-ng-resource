@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 15:35
+* Compiled At: 04/12/2013 15:34
 ***********************************************/
 (function(window) {
 'use strict';
@@ -84,10 +84,7 @@ function($http) {
             });
         },
 
-        checkResponse: function (response) {
-            // TODO: If our access_token is getting stale, then get a new one,
-            // and have the session update the request configs
-            var authResult = {};
+        checkResponse: function (response) {var authResult = {};
             if (response.status !== 401) {
                 authResult.authFailure = true;
             }
@@ -121,13 +118,8 @@ function($resource) {
 
     return function(session, path, paramDefaults, actions) {
         var fullActions = angular.extend({}, DEFAULT_ACTIONS, actions);
-        angular.forEach(fullActions, function(httpConf) {
-            // FIXME What about when auth headers change?
-            session.manageRequestConf(httpConf);
-        });
-
-        // Escape the colon before a port number, it confuses ngResource
-        var host = session.getHost().replace(/(:\d+)$/g, '\\$1');
+        angular.forEach(fullActions, function(httpConf) {session.manageRequestConf(httpConf);
+        });var host = session.getHost().replace(/(:\d+)$/g, '\\$1');
         var res = $resource(host + path, paramDefaults, fullActions);
 
         return res;
@@ -169,7 +161,6 @@ function($q, $location, $cookieStore) {
             this.reset();
         }
     };
-    
     Session.prototype = {
         getUserName: function () {
             if (this.loggedIn()) {
@@ -177,9 +168,7 @@ function($q, $location, $cookieStore) {
             }
         },
 
-        loggedIn: function () {
-            // TODO Check for timeout
-            return this.state !== null;
+        loggedIn: function () {return this.state !== null;
         },
 
         login: function (credentials, callbacks) {
@@ -271,20 +260,13 @@ function($q, $location, $cookieStore) {
 angular.module('secureNgResource')
 .config([
 '$httpProvider',
-function($httpProvider) {
-    // TODO Interceptors are deprecated, but we need access to the
-    // status code of the response and transformResponse cannot get us that.
-    $httpProvider.responseInterceptors.push([
+function($httpProvider) {$httpProvider.responseInterceptors.push([
     'session',
     function(session) {
-        var responder = function (response) {
-            // Failure
-            var ses = session.dictionary[response.config.sessionDictKey];
+        var responder = function (response) {var ses = session.dictionary[response.config.sessionDictKey];
             if (ses) {
                 return ses.handleHttpResponse(response);
-            } else {
-                // Let someone else deal with this problem
-                return response;
+            } else {return response;
             }
         };
 

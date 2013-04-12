@@ -23,6 +23,7 @@ function($q, $location, $cookieStore) {
 
         this.priorPath = null;
         this.state = null;
+        this.managedHttpConfs = [];
 
         sessionDictionary[this.cookieKey()] = this;
         var cookie = $cookieStore.get(this.cookieKey());
@@ -54,6 +55,7 @@ function($q, $location, $cookieStore) {
 
                 if (result.status === 'accepted') {
                     me.state = result.newState;
+                    me.reupdateManagedRequestConfs();
                     $cookieStore.put(me.cookieKey(), me.state);
                     var tgt = me.settings.defaultPostLoginPath;
                     if (me.priorPath !== null) { tgt = me.priorPath; }
@@ -73,6 +75,7 @@ function($q, $location, $cookieStore) {
 
         reset: function () {
             this.state = null;
+            this.reupdateManagedRequestConfs();
             $cookieStore.remove(this.cookieKey());
         },
 
@@ -81,12 +84,30 @@ function($q, $location, $cookieStore) {
                 encodeURIComponent(this.host);
         },
 
-        updateRequest: function(httpConf) {
+        updateRequestConf: function(httpConf) {
             if (this.loggedIn()) {
                 if (!httpConf.headers) { httpConf.headers = {}; }
-                this.auth.addAuthToRequest(httpConf, this.state);
+                this.auth.addAuthToRequestConf(httpConf, this.state);
+                httpConf.sessionDictKey = this.cookieKey();
             }
-            httpConf.sessionDictKey = this.cookieKey();
+        },
+
+        manageRequestConf: function(httpConf) {
+            this.managedHttpConfs.push({
+                conf: httpConf,
+                original: angular.copy(httpConf)
+            });
+            this.updateRequestConf(httpConf);
+        },
+
+        reupdateManagedRequestConfs: function() {
+            var me = this;
+            angular.forEach(this.managedHttpConfs, function(o) {
+                for (var key in o.conf) { delete o.conf[key]; }
+                var originalConf = angular.copy(o.original);
+                angular.extend(o.conf, originalConf);
+                me.updateRequestConf(o.conf);
+            });
         },
 
         handleHttpFailure: function(response) {

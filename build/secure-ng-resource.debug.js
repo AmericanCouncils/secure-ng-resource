@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 14:20
+* Compiled At: 04/12/2013 14:58
 ***********************************************/
 (function(window) {
 'use strict';
@@ -84,7 +84,7 @@ function($http) {
             });
         },
 
-        addAuthToRequest: function (httpConf, state) {
+        addAuthToRequestConf: function (httpConf, state) {
             httpConf.headers.Authorization = 'Bearer ' + state.accessToken;
         },
 
@@ -116,9 +116,8 @@ function($resource) {
     return function(session, path, paramDefaults, actions) {
         var fullActions = angular.extend({}, DEFAULT_ACTIONS, actions);
         angular.forEach(fullActions, function(httpConf) {
-            // FIXME This will stop working when token changes!
-            // Update as needed from session, tracking resource by path
-            session.updateRequest(httpConf);
+            // FIXME What about when auth headers change?
+            session.manageRequestConf(httpConf);
         });
 
         // Escape the colon before a port number, it confuses ngResource
@@ -154,6 +153,7 @@ function($q, $location, $cookieStore) {
 
         this.priorPath = null;
         this.state = null;
+        this.managedHttpConfs = [];
 
         sessionDictionary[this.cookieKey()] = this;
         var cookie = $cookieStore.get(this.cookieKey());
@@ -185,6 +185,7 @@ function($q, $location, $cookieStore) {
 
                 if (result.status === 'accepted') {
                     me.state = result.newState;
+                    me.reupdateManagedRequestConfs();
                     $cookieStore.put(me.cookieKey(), me.state);
                     var tgt = me.settings.defaultPostLoginPath;
                     if (me.priorPath !== null) { tgt = me.priorPath; }
@@ -204,6 +205,7 @@ function($q, $location, $cookieStore) {
 
         reset: function () {
             this.state = null;
+            this.reupdateManagedRequestConfs();
             $cookieStore.remove(this.cookieKey());
         },
 
@@ -212,12 +214,30 @@ function($q, $location, $cookieStore) {
                 encodeURIComponent(this.host);
         },
 
-        updateRequest: function(httpConf) {
+        updateRequestConf: function(httpConf) {
             if (this.loggedIn()) {
                 if (!httpConf.headers) { httpConf.headers = {}; }
-                this.auth.addAuthToRequest(httpConf, this.state);
+                this.auth.addAuthToRequestConf(httpConf, this.state);
+                httpConf.sessionDictKey = this.cookieKey();
             }
-            httpConf.sessionDictKey = this.cookieKey();
+        },
+
+        manageRequestConf: function(httpConf) {
+            this.managedHttpConfs.push({
+                conf: httpConf,
+                original: angular.copy(httpConf)
+            });
+            this.updateRequestConf(httpConf);
+        },
+
+        reupdateManagedRequestConfs: function() {
+            var me = this;
+            angular.forEach(this.managedHttpConfs, function(o) {
+                for (var key in o.conf) { delete o.conf[key]; }
+                var originalConf = angular.copy(o.original);
+                angular.extend(o.conf, originalConf);
+                me.updateRequestConf(o.conf);
+            });
         },
 
         handleHttpFailure: function(response) {

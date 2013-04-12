@@ -15,9 +15,8 @@ function($resource) {
     return function(session, path, paramDefaults, actions) {
         var fullActions = angular.extend({}, DEFAULT_ACTIONS, actions);
         angular.forEach(fullActions, function(httpConf) {
-            // FIXME This will stop working when token changes!
-            // Update as needed from session, tracking resource by path
-            session.updateRequest(httpConf);
+            // FIXME What about when auth headers change?
+            session.manageRequestConf(httpConf);
         });
 
         // Escape the colon before a port number, it confuses ngResource

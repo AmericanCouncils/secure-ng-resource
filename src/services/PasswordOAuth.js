@@ -71,7 +71,7 @@ function($http) {
             });
         },
 
-        addAuthToRequest: function (httpConf, state) {
+        addAuthToRequestConf: function (httpConf, state) {
             httpConf.headers.Authorization = 'Bearer ' + state.accessToken;
         },
 

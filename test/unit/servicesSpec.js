@@ -23,7 +23,7 @@ describe('secure-ng-resource', function () {
         var resource, mockSession;
         beforeEach(function() {
             mockSession = {
-                updateRequest: function(httpConf) {
+                manageRequestConf: function(httpConf) {
                     httpConf.headers = {};
                     httpConf.headers.Authorization = 'foo';
                 },
@@ -123,7 +123,9 @@ describe('secure-ng-resource', function () {
                     handler(this.checkLoginResult);
                 },
 
-                addAuthToRequest: function(httpConf, state) {},
+                addAuthToRequestConf: function(httpConf, state) {
+                    httpConf.headers.Authorization = "foo";
+                },
 
                 isAuthFailureResult: false,
                 isAuthFailure: function(response) {
@@ -131,7 +133,7 @@ describe('secure-ng-resource', function () {
                 }
             };
             spyOn(auth, 'checkLogin').andCallThrough();
-            spyOn(auth, 'addAuthToRequest').andCallThrough();
+            spyOn(auth, 'addAuthToRequestConf').andCallThrough();
             spyOn(auth, 'isAuthFailure').andCallThrough();
 
             sessionFactory = session;
@@ -242,17 +244,24 @@ describe('secure-ng-resource', function () {
         });
 
         it('allows auth to update outgoing requests when logged in', function () {
-            ses.updateRequest({});
-            expect(auth.addAuthToRequest).not.toHaveBeenCalled();
+            var httpConf = {headers: {}};
+            ses.manageRequestConf(httpConf);
+
+            expect(httpConf.headers.Authorization).toBeUndefined();
             ses.login({user: 'alice', pass: 'swordfish'});
-            ses.updateRequest({});
-            expect(auth.addAuthToRequest).toHaveBeenCalled();
+            expect(httpConf.headers.Authorization).toBeDefined();
+            ses.reset();
+            expect(httpConf.headers.Authorization).toBeUndefined();
         });
 
-        it('attaches the session key to all outgoing requests', function () {
+        it('when logged in, attaches key to request configs', function () {
             var httpConf = {};
-            ses.updateRequest(httpConf);
+            ses.manageRequestConf(httpConf);
+            expect(httpConf.sessionDictKey).toBeUndefined();
+            ses.login({user: 'alice', pass: 'swordfish'});
             expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
+            ses.reset();
+            expect(httpConf.sessionDictKey).toBeUndefined();
         });
 
         it('calls appropriate login callbacks depending on checkLogin', function () {
@@ -381,7 +390,7 @@ describe('secure-ng-resource', function () {
             $httpBackend.flush();
             
             var httpConf = {headers: {}};
-            auth.addAuthToRequest(httpConf, state);
+            auth.addAuthToRequestConf(httpConf, state);
             expect(httpConf.headers.Authorization).toEqual("Bearer abc");
         });
 

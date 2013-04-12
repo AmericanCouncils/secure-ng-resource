@@ -337,7 +337,65 @@ describe('secure-ng-resource', function () {
             );
             $httpBackend.flush();
             expect(handler.mostRecentCall.args[0].status).toEqual('denied');
-            expect(handler.mostRecentCall.args[0].msg).toBeTruthy();
+            expect(handler.mostRecentCall.args[0].msg).toMatch(/password/i);
+        });
+
+        it('calls handler correctly on HTTP failure', function () {
+            var handler = jasmine.createSpy('handler');
+            $httpBackend.when('POST', 'https://example.com/oauth/v2/token').
+                respond(500, "Internal Server Error, Oh Noes");
+            auth.checkLogin(
+                'https://example.com',
+                {user: 'alice', pass: 'swordfish'},
+                handler
+            );
+            $httpBackend.flush();
+            expect(handler.mostRecentCall.args[0].status).toEqual('error');
+            expect(handler.mostRecentCall.args[0].msg).toMatch(/500/);
+        });
+
+        it('calls handler correctly on OAuth failure', function () {
+            var handler = jasmine.createSpy('handler');
+            $httpBackend.when('POST', 'https://example.com/oauth/v2/token').
+                respond(500, {error_description: "War Were Declared"});
+            auth.checkLogin(
+                'https://example.com',
+                {user: 'alice', pass: 'swordfish'},
+                handler
+            );
+            $httpBackend.flush();
+            expect(handler.mostRecentCall.args[0].status).toEqual('error');
+            expect(handler.mostRecentCall.args[0].msg).toMatch(/Were/);
+        });
+
+        it('adds Authorization header with token to requests', function () {
+            var state = {};
+            var handler = function(result) {
+                state = result.newState;
+            };
+            $httpBackend.when('POST', 'https://example.com/oauth/v2/token'
+            ).respond({
+                access_token: 'abc',
+                refresh_token: 'xyz',
+                expires_in: 3600
+            });
+            auth.checkLogin(
+                'https://example.com',
+                {user: 'alice', pass: 'swordfish'},
+                handler
+            );
+            $httpBackend.flush();
+            
+            var httpConf = {headers: {}};
+            auth.addAuthToRequest(httpConf, state);
+            expect(httpConf.headers.Authorization).toEqual("Bearer abc");
+        });
+
+        it('only treats HTTP responses with 401 status as auth fails', function () {
+            expect(auth.isAuthFailure({status: 401})).toBeTruthy();
+            expect(auth.isAuthFailure({status: 200})).toBeFalsy();
+            expect(auth.isAuthFailure({status: 405})).toBeFalsy();
+            expect(auth.isAuthFailure({status: 500})).toBeFalsy();
         });
     });
 });

@@ -4,7 +4,8 @@ angular.module('secureNgResource')
 .factory('passwordOAuth', [
 '$http',
 function($http) {
-    var PasswordOAuth = function (clientId, clientSecret) {
+    var PasswordOAuth = function (host, clientId, clientSecret) {
+        this.host = host;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
     };
@@ -19,10 +20,10 @@ function($http) {
     };
 
     PasswordOAuth.prototype = {
-        checkLogin: function (host, credentials, handler) {
+        checkLogin: function (credentials, handler) {
             $http({
                 method: 'POST',
-                url: host + '/oauth/v2/token',
+                url: this.host + '/oauth/v2/token',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                 data: encodeURIForm({
                     'client_id': this.clientId,
@@ -79,8 +80,8 @@ function($http) {
         }
     };
 
-    var PasswordOAuthFactory = function(clientId, clientSecret) {
-        return new PasswordOAuth(clientId, clientSecret);
+    var PasswordOAuthFactory = function(host, clientId, clientSecret) {
+        return new PasswordOAuth(host, clientId, clientSecret);
     };
     return PasswordOAuthFactory;
 }]);

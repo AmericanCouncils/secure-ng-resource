@@ -119,7 +119,7 @@ describe('secure-ng-resource', function () {
                     status: 'accepted',
                     newState: { user: 'someone' }
                 },
-                checkLogin: function(host, creds, handler) {
+                checkLogin: function(creds, handler) {
                     handler(this.checkLoginResult);
                 },
 
@@ -284,7 +284,7 @@ describe('secure-ng-resource', function () {
     describe('PasswordOAuth', function () {
         var auth;
         beforeEach(inject(function(passwordOAuth) {
-            auth = passwordOAuth('my_id', 'my_secret');
+            auth = passwordOAuth('https://example.com', 'my_id', 'my_secret');
         }));
 
         it('makes valid token requests and calls handler with user', function () {
@@ -302,7 +302,6 @@ describe('secure-ng-resource', function () {
                 expires_in: 3600
             });
             auth.checkLogin(
-                'https://example.com',
                 {user: 'alice', pass: 'swordfish'},
                 function() {}
             );
@@ -318,7 +317,6 @@ describe('secure-ng-resource', function () {
                 expires_in: 3600
             });
             auth.checkLogin(
-                'https://example.com',
                 {user: 'alice', pass: 'swordfish'},
                 handler
             );
@@ -331,7 +329,6 @@ describe('secure-ng-resource', function () {
             $httpBackend.when('POST', 'https://example.com/oauth/v2/token').
                 respond(400, {error: 'invalid_grant'});
             auth.checkLogin(
-                'https://example.com',
                 {user: 'alice', pass: 'swordfish'},
                 handler
             );
@@ -345,7 +342,6 @@ describe('secure-ng-resource', function () {
             $httpBackend.when('POST', 'https://example.com/oauth/v2/token').
                 respond(500, "Internal Server Error, Oh Noes");
             auth.checkLogin(
-                'https://example.com',
                 {user: 'alice', pass: 'swordfish'},
                 handler
             );
@@ -359,7 +355,6 @@ describe('secure-ng-resource', function () {
             $httpBackend.when('POST', 'https://example.com/oauth/v2/token').
                 respond(500, {error_description: "War Were Declared"});
             auth.checkLogin(
-                'https://example.com',
                 {user: 'alice', pass: 'swordfish'},
                 handler
             );
@@ -380,7 +375,6 @@ describe('secure-ng-resource', function () {
                 expires_in: 3600
             });
             auth.checkLogin(
-                'https://example.com',
                 {user: 'alice', pass: 'swordfish'},
                 handler
             );

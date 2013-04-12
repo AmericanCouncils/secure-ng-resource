@@ -61,7 +61,7 @@ function($q, $location, $cookieStore) {
                 }
             };
 
-            this.auth.checkLogin(this.host, credentials, handler);
+            this.auth.checkLogin(credentials, handler);
         },
 
         logout: function () {

@@ -80,8 +80,8 @@ function($q, $location, $cookieStore, sessionDictionary) {
         },
 
         updateRequest: function(httpConf) {
-            if (!httpConf.headers) { httpConf.headers = {}; }
             if (this.loggedIn()) {
+                if (!httpConf.headers) { httpConf.headers = {}; }
                 this.auth.addAuthToRequest(httpConf, this.state);
             }
             httpConf.sessionDictKey = this.cookieKey();

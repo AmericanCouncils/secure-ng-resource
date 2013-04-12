@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 11:05
+* Compiled At: 04/12/2013 12:19
 ***********************************************/
 (function(window) {
 'use strict';
@@ -14,7 +14,7 @@ angular.module('secureNgResource', [
 'use strict';
 
 angular.module('secureNgResource')
-.factory('oauthPasswordAuth', [
+.factory('passwordOAuth', [
 '$http',
 function($http) {
     var PasswordOAuth = function (clientId, clientSecret) {
@@ -32,7 +32,7 @@ function($http) {
     };
 
     PasswordOAuth.prototype = {
-        login: function (host, credentials, handler) {
+        checkLogin: function (host, credentials, handler) {
             $http({
                 method: 'POST',
                 url: host + '/oauth/v2/token',
@@ -209,8 +209,8 @@ function($q, $location, $cookieStore, sessionDictionary) {
         },
 
         updateRequest: function(httpConf) {
-            if (!httpConf.headers) { httpConf.headers = {}; }
             if (this.loggedIn()) {
+                if (!httpConf.headers) { httpConf.headers = {}; }
                 this.auth.addAuthToRequest(httpConf, this.state);
             }
             httpConf.sessionDictKey = this.cookieKey();

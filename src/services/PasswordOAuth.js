@@ -72,6 +72,8 @@ function($http) {
         },
 
         checkResponse: function (response) {
+            // TODO: If our access_token is getting stale, then get a new one,
+            // and have the session update the request configs
             var authResult = {};
             if (response.status !== 401) {
                 authResult.authFailure = true;

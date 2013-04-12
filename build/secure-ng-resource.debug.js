@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 15:35
+* Compiled At: 04/12/2013 15:59
 ***********************************************/
 (function(window) {
 'use strict';
@@ -175,6 +175,10 @@ function($q, $location, $cookieStore) {
             if (this.loggedIn()) {
                 return this.state.user;
             }
+        },
+
+        getHost: function () {
+            return this.host;
         },
 
         loggedIn: function () {

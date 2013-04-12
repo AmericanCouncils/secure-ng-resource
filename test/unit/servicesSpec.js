@@ -151,6 +151,7 @@ describe('secure-ng-resource', function () {
 
         it('has the correct initial state by default', function() {
             expect(ses.getUserName()).toBeUndefined();
+            expect(ses.getHost()).toEqual('localhost');
             expect(ses.loggedIn()).toEqual(false);
             expect(ses.cookieKey()).toEqual('angular-localhost');
         });

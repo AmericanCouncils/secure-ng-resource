@@ -41,6 +41,10 @@ function($q, $location, $cookieStore) {
             }
         },
 
+        getHost: function () {
+            return this.host;
+        },
+
         loggedIn: function () {
             // TODO Check for timeout
             return this.state !== null;

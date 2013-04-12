@@ -72,7 +72,11 @@ function($http) {
         },
 
         checkResponse: function (response) {
-            return (response.status !== 401);
+            var authResult = {};
+            if (response.status !== 401) {
+                authResult.authFailure = true;
+            }
+            return authResult;
         },
 
         addAuthToRequestConf: function (httpConf, state) {

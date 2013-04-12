@@ -127,7 +127,7 @@ describe('secure-ng-resource', function () {
                     httpConf.headers.Authorization = "foo";
                 },
 
-                checkResponseResult: true,
+                checkResponseResult: {},
                 checkResponse: function(response) {
                     return this.checkResponseResult;
                 }
@@ -202,7 +202,7 @@ describe('secure-ng-resource', function () {
         });
 
         it('clears session, resets to login page after http auth failure', function () {
-            auth.checkResponseResult = false;
+            auth.checkResponseResult = { authFailure: true };
             spyOn(ses, 'reset');
             ses.handleHttpResponse({});
             expect(auth.checkResponse).toHaveBeenCalled();
@@ -221,7 +221,7 @@ describe('secure-ng-resource', function () {
         });
 
         it('resets back to original pre-reset path after login', function() {
-            auth.checkResponseResult = false;
+            auth.checkResponseResult = { authFailure: true };
             ses.handleHttpResponse();
             ses.login({user: 'alice', pass: 'swordfish'});
             expect(loc.path).toHaveBeenCalledWith('/some/resource');
@@ -397,10 +397,10 @@ describe('secure-ng-resource', function () {
         });
 
         it('only treats HTTP responses with 401 status as auth fails', function () {
-            expect(auth.checkResponse({status: 401})).toBeFalsy();
-            expect(auth.checkResponse({status: 200})).toBeTruthy();
-            expect(auth.checkResponse({status: 405})).toBeTruthy();
-            expect(auth.checkResponse({status: 500})).toBeTruthy();
+            expect(auth.checkResponse({status: 401}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 200}).authFailure).toBeTruthy();
+            expect(auth.checkResponse({status: 405}).authFailure).toBeTruthy();
+            expect(auth.checkResponse({status: 500}).authFailure).toBeTruthy();
         });
     });
 });

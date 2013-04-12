@@ -111,7 +111,8 @@ function($q, $location, $cookieStore) {
         },
 
         handleHttpResponse: function(response) {
-            if (!this.auth.checkResponse(response)) {
+            var authResult = this.auth.checkResponse(response);
+            if (authResult.authFailure) {
                 this.reset();
                 this.priorPath = $location.path();
                 $location.path(this.settings.loginPath).replace();

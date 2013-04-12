@@ -2,13 +2,15 @@
 
 angular.module('secureNgResource')
 .factory('session', [
-'$q', '$location', '$cookieStore', 'sessionDictionary',
-function($q, $location, $cookieStore, sessionDictionary) {
+'$q', '$location', '$cookieStore',
+function($q, $location, $cookieStore) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
         defaultPostLoginPath: '/'
     };
+
+    var sessionDictionary = {};
 
     var Session = function (host, auth, settings) {
         this.host = host;
@@ -102,5 +104,6 @@ function($q, $location, $cookieStore, sessionDictionary) {
     var SessionFactory = function(host, auth, settings) {
         return new Session(host, auth, settings);
     };
+    SessionFactory.dictionary = sessionDictionary;
     return SessionFactory;
 }]);

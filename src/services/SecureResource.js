@@ -2,7 +2,8 @@
 
 angular.module('secureNgResource')
 .factory('secureResource', [
-'$resource', function($resource) {
+'$resource',
+function($resource) {
     var DEFAULT_ACTIONS = {
         'get':    {method:'GET'},
         'save':   {method:'POST'},

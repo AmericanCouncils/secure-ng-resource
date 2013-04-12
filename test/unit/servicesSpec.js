@@ -66,13 +66,13 @@ describe('secure-ng-resource', function () {
 
     describe('HTTP Interception', function () {
         var mockSession, http;
-        beforeEach(inject(function(sessionDictionary, $http) {
+        beforeEach(inject(function(session, $http) {
             http = $http;
             mockSession = jasmine.createSpyObj('session', ['handleHttpFailure']);
-            sessionDictionary['someSession'] = mockSession;
+            session.dictionary['someSession'] = mockSession;
         }));
-        afterEach(inject(function(sessionDictionary) {
-            delete sessionDictionary['someSession'];
+        afterEach(inject(function(session) {
+            delete session.dictionary['someSession'];
         }));
 
         it('notifies attached session on failed HTTP requests', function () {

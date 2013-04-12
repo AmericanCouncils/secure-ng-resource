@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 13:08
+* Compiled At: 04/12/2013 14:08
 ***********************************************/
 (function(window) {
 'use strict';
@@ -102,7 +102,8 @@ function($http) {
 
 angular.module('secureNgResource')
 .factory('secureResource', [
-'$resource', function($resource) {
+'$resource',
+function($resource) {
     var DEFAULT_ACTIONS = {
         'get':    {method:'GET'},
         'save':   {method:'POST'},
@@ -131,13 +132,15 @@ angular.module('secureNgResource')
 
 angular.module('secureNgResource')
 .factory('session', [
-'$q', '$location', '$cookieStore', 'sessionDictionary',
-function($q, $location, $cookieStore, sessionDictionary) {
+'$q', '$location', '$cookieStore',
+function($q, $location, $cookieStore) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
         defaultPostLoginPath: '/'
     };
+
+    var sessionDictionary = {};
 
     var Session = function (host, auth, settings) {
         this.host = host;
@@ -231,32 +234,28 @@ function($q, $location, $cookieStore, sessionDictionary) {
     var SessionFactory = function(host, auth, settings) {
         return new Session(host, auth, settings);
     };
+    SessionFactory.dictionary = sessionDictionary;
     return SessionFactory;
 }]);
 
 'use strict';
 
 angular.module('secureNgResource')
-.factory('sessionDictionary', [
-function () {
-    return {};
-}]);
-
-'use strict';
-
-angular.module('secureNgResource').config([
+.config([
 '$httpProvider',
 function($httpProvider) {
+    // TODO Interceptors are deprecated, but we need access to the
+    // status code of the response and transformResponse cannot get us that.
     $httpProvider.responseInterceptors.push([
-    'sessionDictionary',
-    function(sessionDictionary) {
+    'session',
+    function(session) {
         return function(promise) {
             return promise.then(function (response) {
                 // Success
                 return response;
             }, function (response)  {
                 // Failure
-                var ses = sessionDictionary[response.config.sessionDictKey];
+                var ses = session.dictionary[response.config.sessionDictKey];
                 if (ses) {
                     return ses.handleHttpFailure(response);
                 } else {

@@ -1,9 +1,11 @@
 'use strict';
 
 angular.module('secureNgResource').config([
-'$httpProvider', 'sessionDictionary',
-function($httpProvider, sessionDictionary) {
-    $httpProvider.responseInterceptors.push([function() {
+'$httpProvider',
+function($httpProvider) {
+    $httpProvider.responseInterceptors.push([
+    'sessionDictionary',
+    function(sessionDictionary) {
         return function(promise) {
             return promise.then(function (response) {
                 // Success

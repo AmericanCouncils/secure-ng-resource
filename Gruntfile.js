@@ -77,8 +77,8 @@ module.exports = function (grunt) {
         pkg: grunt.file.readJSON('package.json'),
         srcFiles: [
             'src/namespace.js',
-            'src/httpIntercept.js',
             'src/services/*.js',
+            'src/httpInterceptor.js',
         ],
         karma: {
             unit: {

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/11/2013 16:42
+* Compiled At: 04/12/2013 10:24
 ***********************************************/
 (function(window) {
 'use strict';
@@ -173,19 +173,22 @@ function($q, $location, $cookieStore, sessionDictionary) {
         },
 
         login: function (credentials, callbacks) {
-            this.auth.checkLogin(this.host, credentials, function(result) {
+            var me = this;
+            var handler = function(result) {
                 if (angular.isObject(callbacks) && callbacks[result.status]) {
                     callbacks[result.status](result);
                 }
 
                 if (result.status === 'accepted') {
-                    this.state = result.newState;
-                    $cookieStore.put(this.cookieKey(), this.state);
-                    var tgt = this.settings.defaultPostLoginPath;
-                    if (this.priorPath !== null) { tgt = this.priorPath; }
+                    me.state = result.newState;
+                    $cookieStore.put(me.cookieKey(), me.state);
+                    var tgt = me.settings.defaultPostLoginPath;
+                    if (me.priorPath !== null) { tgt = me.priorPath; }
                     $location.path(tgt).replace();
                 }
-            }.bind(this));
+            };
+
+            this.auth.checkLogin(this.host, credentials, handler);
         },
 
         logout: function () {
@@ -237,6 +240,32 @@ angular.module('secureNgResource')
 .factory('sessionDictionary', [
 function () {
     return {};
+}]);
+
+'use strict';
+
+angular.module('secureNgResource').config([
+'$httpProvider',
+function($httpProvider) {
+    $httpProvider.responseInterceptors.push([
+    'sessionDictionary',
+    function(sessionDictionary) {
+        return function(promise) {
+            return promise.then(function (response) {
+                // Success
+                return response;
+            }, function (response)  {
+                // Failure
+                var ses = sessionDictionary[response.config.sessionDictKey];
+                if (ses) {
+                    return ses.handleHttpFailure(response);
+                } else {
+                    // Let someone else deal with this problem
+                    return response;
+                }
+            });
+        };
+    }]);
 }]);
 
 }(window));

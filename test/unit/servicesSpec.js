@@ -68,25 +68,22 @@ describe('secure-ng-resource', function () {
         });
     });
 
-    /* FIXME It seems that the mock httpBackend does not simulate intercepts
     describe('HTTP Interception', function () {
         var mockSession, http;
         beforeEach(inject(function(sessionDictionary, $http) {
             http = $http;
-            mockSession = {
-                handleHttpFailure: function(resource) { return false; },
-                updateRequest: function(httpConf) {
-                    httpConf.sessionDictKey = 'someSession';
-                }
-            };
-            spyOn(mockSession, 'handleHttpFailure');
+            mockSession = jasmine.createSpyObj("session", ["handleHttpFailure"]);
             sessionDictionary['someSession'] = mockSession;
         }));
 
         it('notifies attached session on failed HTTP requests', function () {
             $httpBackend.when('GET', 'http://example.com:9001/matrix').
                 respond(401, {reason: 'You took the blue pill'});
-            http({method: 'GET', url: 'http://example.com:9001/matrix'});
+            http({
+                method: 'GET',
+                url: 'http://example.com:9001/matrix',
+                sessionDictKey: 'someSession'
+            });
             $httpBackend.flush();
             expect(mockSession.handleHttpFailure).toHaveBeenCalled();
         });
@@ -94,7 +91,10 @@ describe('secure-ng-resource', function () {
         it('does not notify if session is not attached', function () {
             $httpBackend.when('GET', 'http://example.com:9001/theclub').
                 respond(401, {reason: 'You just aren\'t cool enough'});
-            http({method: 'GET', url: 'http://example.com:9001/theclub'});
+            http({
+                method: 'GET',
+                url: 'http://example.com:9001/theclub'
+            });
             $httpBackend.flush();
             expect(mockSession.handleHttpFailure).not.toHaveBeenCalled();
         });
@@ -102,12 +102,15 @@ describe('secure-ng-resource', function () {
         it('does not notify on successful HTTP requests', function () {
             $httpBackend.when('GET', 'http://example.com:9001/bunnies').
                 respond({actions: ['hop', 'hop', 'hop']});
-            http({method: 'GET', url: 'http://example.com:9001/bunnies'});
+            http({
+                method: 'GET',
+                url: 'http://example.com:9001/bunnies',
+                sessionDictKey: 'someSession'
+            });
             $httpBackend.flush();
             expect(mockSession.handleHttpFailure).not.toHaveBeenCalled();
         });
     });
-    */
 
     describe('Session', function() {
         var sessionFactory, ses, auth;

@@ -113,8 +113,8 @@ describe('secure-ng-resource', function () {
     });
 
     describe('Session', function() {
-        var sessionFactory, ses, auth;
-        beforeEach(inject(function(session) {
+        var sessionFactory, ses, auth, loc;
+        beforeEach(inject(function(session, $location) {
             sessionFactory = session;
             auth = {
                checkLogin: function(host, creds, handler) {},
@@ -122,7 +122,16 @@ describe('secure-ng-resource', function () {
                isAuthFailure: function(response) {}
             };
             ses = sessionFactory('localhost', auth);
+            loc = $location;
         }));
+
+        var checkLoginAcceptAll = function(host, creds, handler) {
+            handler({ status: 'accepted', newState: { user: creds.user } });
+        };
+
+        var checkLoginDenyAll = function(host, creds, handler) {
+            handler({ status: 'denied', msg: "And stay out" });
+        };
 
         it('has the correct initial state by default', function() {
             expect(ses.getUserName()).toBeUndefined();
@@ -130,13 +139,40 @@ describe('secure-ng-resource', function () {
             expect(ses.cookieKey()).toEqual("angular-localhost");
         });
 
+        it('allows cookie key to be overridden', function () {
+            var ses2 = sessionFactory('bar', auth, {sessionName: 'foo'});
+            expect(ses2.cookieKey()).toEqual("foo-bar");
+        });
+
         it('accepts logins which the authenticator approves', function() {
-            spyOn(auth, "checkLogin").andCallFake(function(host, creds, handler) {
-                handler({ status: 'accepted', newState: { user: creds.user } });
-            });
+            spyOn(auth, "checkLogin").andCallFake(checkLoginAcceptAll);
             ses.login({user: 'alice', pass: 'swordfish'});
             expect(ses.getUserName()).toEqual('alice');
             expect(ses.loggedIn()).toEqual(true);
+        });
+
+        it('denies logins which the authenticator does not approve', function() {
+            spyOn(auth, "checkLogin").andCallFake(checkLoginDenyAll);
+            ses.login({user: 'alice', pass: 'swordfish'});
+            expect(ses.getUserName()).toBeUndefined();
+            expect(ses.loggedIn()).toEqual(false);
+        });
+
+        it('can drop the session state', function() {
+            spyOn(auth, "checkLogin").andCallFake(checkLoginAcceptAll);
+            ses.login({user: 'alice', pass: 'swordfish'});
+            ses.reset();
+            expect(ses.getUserName()).toBeUndefined();
+            expect(ses.loggedIn()).toEqual(false);
+        });
+
+        it('resets location to / after a successful login by default', function () {
+            spyOn(auth, "checkLogin").andCallFake(checkLoginAcceptAll);
+            spyOn(loc, "path").andReturn(loc);
+            spyOn(loc, "replace").andReturn(loc);
+            ses.login({user: 'alice', pass: 'swordfish'});
+            expect(loc.path).toHaveBeenCalledWith("/");
+            expect(loc.replace).toHaveBeenCalled();
         });
     });
 });

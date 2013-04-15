@@ -67,13 +67,13 @@ describe('secure-ng-resource', function () {
 
     describe('HTTP Interception', function () {
         var mockSession, http;
-        beforeEach(inject(function(session, $http) {
+        beforeEach(inject(function(authSession, $http) {
             http = $http;
             mockSession = jasmine.createSpyObj('session', ['handleHttpResponse']);
-            session.dictionary['someSession'] = mockSession;
+            authSession.dictionary['someSession'] = mockSession;
         }));
-        afterEach(inject(function(session) {
-            delete session.dictionary['someSession'];
+        afterEach(inject(function(authSession) {
+            delete authSession.dictionary['someSession'];
         }));
 
         it('notifies attached session on HTTP responses', function () {
@@ -112,9 +112,9 @@ describe('secure-ng-resource', function () {
         });
     });
 
-    describe('Session', function () {
+    describe('AuthSession', function () {
         var sessionFactory, ses, auth, loc;
-        beforeEach(inject(function(session, $location) {
+        beforeEach(inject(function(authSession, $location) {
             auth = {
                 getAuthType: function() { return "mockAuth"; },
                 checkLoginResult: {
@@ -136,7 +136,7 @@ describe('secure-ng-resource', function () {
             spyOn(auth, 'addAuthToRequestConf').andCallThrough();
             spyOn(auth, 'checkResponse').andCallThrough();
 
-            sessionFactory = session;
+            sessionFactory = authSession;
             ses = sessionFactory(auth);
             loc = $location;
             spyOn(loc, 'path').andCallFake(function(a) {

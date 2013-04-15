@@ -1,7 +1,7 @@
 ﻿'use strict';
 
 angular.module('secureNgResource')
-.factory('session', [
+.factory('authSession', [
 '$q', '$location', '$cookieStore',
 function($q, $location, $cookieStore) {
     var DEFAULT_SETTINGS = {
@@ -12,7 +12,7 @@ function($q, $location, $cookieStore) {
 
     var sessionDictionary = {};
 
-    var Session = function (auth, settings) {
+    var AuthSession = function (auth, settings) {
         this.auth = auth;
         this.settings = angular.extend(
             {},
@@ -33,7 +33,7 @@ function($q, $location, $cookieStore) {
         }
     };
     
-    Session.prototype = {
+    AuthSession.prototype = {
         getUserName: function () {
             if (this.loggedIn()) {
                 return this.state.user;
@@ -121,9 +121,9 @@ function($q, $location, $cookieStore) {
         }
     };
 
-    var SessionFactory = function(auth, settings) {
-        return new Session(auth, settings);
+    var AuthSessionFactory = function(auth, settings) {
+        return new AuthSession(auth, settings);
     };
-    SessionFactory.dictionary = sessionDictionary;
-    return SessionFactory;
+    AuthSessionFactory.dictionary = sessionDictionary;
+    return AuthSessionFactory;
 }]);

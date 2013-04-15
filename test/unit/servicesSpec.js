@@ -257,14 +257,14 @@ describe('secure-ng-resource', function () {
             expect(httpConf.headers.Authorization).toBeUndefined();
         });
 
-        it('when logged in, attaches key to request configs', function () {
+        it('always attaches key to request configs', function () {
             var httpConf = {};
             ses.manageRequestConf(httpConf);
-            expect(httpConf.sessionDictKey).toBeUndefined();
+            expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
             ses.login({user: 'alice', pass: 'swordfish'});
             expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
             ses.reset();
-            expect(httpConf.sessionDictKey).toBeUndefined();
+            expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
         });
 
         it('calls appropriate login callbacks depending on checkLogin', function () {

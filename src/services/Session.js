@@ -89,10 +89,10 @@ function($q, $location, $cookieStore) {
         },
 
         updateRequestConf: function(httpConf) {
+            httpConf.sessionDictKey = this.cookieKey();
             if (this.loggedIn()) {
                 if (!httpConf.headers) { httpConf.headers = {}; }
                 this.auth.addAuthToRequestConf(httpConf, this.state);
-                httpConf.sessionDictKey = this.cookieKey();
             }
         },
 

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/15/2013 09:45
+* Compiled At: 04/15/2013 10:07
 ***********************************************/
 (function(window) {
 'use strict';
@@ -225,10 +225,10 @@ function($q, $location, $cookieStore) {
         },
 
         updateRequestConf: function(httpConf) {
+            httpConf.sessionDictKey = this.cookieKey();
             if (this.loggedIn()) {
                 if (!httpConf.headers) { httpConf.headers = {}; }
                 this.auth.addAuthToRequestConf(httpConf, this.state);
-                httpConf.sessionDictKey = this.cookieKey();
             }
         },
 

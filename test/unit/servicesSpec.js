@@ -398,10 +398,10 @@ describe('secure-ng-resource', function () {
         });
 
         it('only treats HTTP responses with 401 status as auth fails', function () {
-            expect(auth.checkResponse({status: 401}).authFailure).toBeFalsy();
-            expect(auth.checkResponse({status: 200}).authFailure).toBeTruthy();
-            expect(auth.checkResponse({status: 405}).authFailure).toBeTruthy();
-            expect(auth.checkResponse({status: 500}).authFailure).toBeTruthy();
+            expect(auth.checkResponse({status: 401}).authFailure).toBeTruthy();
+            expect(auth.checkResponse({status: 200}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 405}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 500}).authFailure).toBeFalsy();
         });
     });
 });

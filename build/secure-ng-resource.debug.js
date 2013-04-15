@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 16:07
+* Compiled At: 04/15/2013 09:45
 ***********************************************/
 (function(window) {
 'use strict';
@@ -88,7 +88,7 @@ function($http) {
             // TODO: If our access_token is getting stale, then get a new one,
             // and have the session update the request configs
             var authResult = {};
-            if (response.status !== 401) {
+            if (response.status === 401) {
                 authResult.authFailure = true;
             }
             return authResult;

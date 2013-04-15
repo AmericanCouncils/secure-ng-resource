@@ -1,16 +1,17 @@
 # secure-ng-resource
-# Authenticated access to RESTful web APIs
 
-## Usage
+## Installation
 
 After you've downloaded the secure-ng-resource component with bower, add the
 usual lines in app.js (to `secureNgResource`) and index.html (to
 `components/secure-ng-resource/build/secure-ng-resource.js`).
 
+## Usage
+
 Suppose you are writing an Angular app that is backed by a RESTful web
 service available at `https://example.com/`. Its authentication is based on the
-[OAuth Resource Owner Password Flow](http://techblog.hybris.com/2012/06/11/oauth2-resource-owner-password-flow/),
-at the same host. You describe this auth system by creating a session
+[OAuth Resource Owner Password Flow](http://techblog.hybris.com/2012/06/11/oauth2-resource-owner-password-flow/).
+Configure your app to use this auth system in a session
 service for your application:
 ```js
 // app/scripts/services/appSession.js
@@ -26,7 +27,7 @@ function(authSession, passwordOAuth) {
 ]);
 ```
 
-You can use this session with secureResource, which is just a wrapper around
+Then you can use this session with secureResource, which is just a wrapper around
 [ngResource](http://docs.angularjs.org/api/ngResource.$resource):
 ```js
 // app/scripts/controllers/things.js
@@ -43,10 +44,12 @@ function($scope, secureResource, appSession) {
 }]);
 ```
 When `Thing.query()` executes, SecureResource will add the appropriate
-authorization to the request. If the request is refused, then the user
+authorization to the request. If the request is refused (if the user hasn't
+logged in yet, or if they logged in a long while ago and their access
+token expired), then the user
 is redirected to your login page (by default at `/login`).
 
-Your login controller should work like this:
+Your login controller can interact with the session like so:
 ```js
 // app/scripts/controllers/login.js
 
@@ -58,19 +61,15 @@ function($scope, appSession) {
         pass: null  // And your password element to this
     };
 
-    $scope.alertMessage = "";
-
     // Have your "Log In" button call this
     $scope.login = function () {
         if (!$scope.loginForm.$valid) { return; }
-
-        $scope.alertMessage = "Signing in...";
-        appSession.login(creds, {
+        appSession.login($scope.credentials, {
             denied: function(result) {
-                $scope.alertMessage = "Login failed: " + result.msg;
+                alert("Login failed: " + result.msg);
             },
             error: function(result) {
-                $scope.alertMessage = "Something went wrong: " + result.msg;
+                alert("Something went wrong: " + result.msg);
             }
         });
     };
@@ -80,9 +79,8 @@ function($scope, appSession) {
 You don't have to worry about redirecting the user after they successfully
 log in, the `appSession.login` function will take care of that. If the user
 was at another internal route and got kicked over to the login page by an
-auth failure, then they will be sent back there. If they went directly to
-the login page, then after logging in they will be directed to the `/`
-internal route by default.
+auth failure, then they will be sent back there. Otherwise they will be sent
+to the `/` internal route by default.
 
 ## Credits
 

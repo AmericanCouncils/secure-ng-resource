@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/15/2013 10:44
+* Compiled At: 04/15/2013 15:03
 ***********************************************/
 (function(window) {
 'use strict';
@@ -33,6 +33,10 @@ function($http) {
     };
 
     PasswordOAuth.prototype = {
+        getAuthType: function () {
+            return 'PasswordOAuth';
+        },
+
         checkLogin: function (credentials, handler) {
             $http({
                 method: 'POST',
@@ -119,16 +123,15 @@ function($resource) {
         'delete': {method:'DELETE'}
     };
 
-    return function(session, path, paramDefaults, actions) {
+    return function(session, url, paramDefaults, actions) {
         var fullActions = angular.extend({}, DEFAULT_ACTIONS, actions);
         angular.forEach(fullActions, function(httpConf) {
-            // FIXME What about when auth headers change?
             session.manageRequestConf(httpConf);
         });
 
         // Escape the colon before a port number, it confuses ngResource
-        var host = session.getHost().replace(/(:\d+)$/g, '\\$1');
-        var res = $resource(host + path, paramDefaults, fullActions);
+        url = url.replace(/^([^\/].+?)(:\d+\/)/g, '$1\\$2');
+        var res = $resource(url, paramDefaults, fullActions);
 
         return res;
     };
@@ -148,8 +151,7 @@ function($q, $location, $cookieStore) {
 
     var sessionDictionary = {};
 
-    var Session = function (host, auth, settings) {
-        this.host = host;
+    var Session = function (auth, settings) {
         this.auth = auth;
         this.settings = angular.extend(
             {},
@@ -175,10 +177,6 @@ function($q, $location, $cookieStore) {
             if (this.loggedIn()) {
                 return this.state.user;
             }
-        },
-
-        getHost: function () {
-            return this.host;
         },
 
         loggedIn: function () {
@@ -220,8 +218,7 @@ function($q, $location, $cookieStore) {
         },
 
         cookieKey: function () {
-            return this.settings.sessionName + '-' +
-                encodeURIComponent(this.host);
+            return this.settings.sessionName + '-' + this.auth.getAuthType();
         },
 
         updateRequestConf: function(httpConf) {
@@ -263,8 +260,8 @@ function($q, $location, $cookieStore) {
         }
     };
 
-    var SessionFactory = function(host, auth, settings) {
-        return new Session(host, auth, settings);
+    var SessionFactory = function(auth, settings) {
+        return new Session(auth, settings);
     };
     SessionFactory.dictionary = sessionDictionary;
     return SessionFactory;

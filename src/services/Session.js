@@ -12,8 +12,7 @@ function($q, $location, $cookieStore) {
 
     var sessionDictionary = {};
 
-    var Session = function (host, auth, settings) {
-        this.host = host;
+    var Session = function (auth, settings) {
         this.auth = auth;
         this.settings = angular.extend(
             {},
@@ -39,10 +38,6 @@ function($q, $location, $cookieStore) {
             if (this.loggedIn()) {
                 return this.state.user;
             }
-        },
-
-        getHost: function () {
-            return this.host;
         },
 
         loggedIn: function () {
@@ -84,8 +79,7 @@ function($q, $location, $cookieStore) {
         },
 
         cookieKey: function () {
-            return this.settings.sessionName + '-' +
-                encodeURIComponent(this.host);
+            return this.settings.sessionName + '-' + this.auth.getAuthType();
         },
 
         updateRequestConf: function(httpConf) {
@@ -127,8 +121,8 @@ function($q, $location, $cookieStore) {
         }
     };
 
-    var SessionFactory = function(host, auth, settings) {
-        return new Session(host, auth, settings);
+    var SessionFactory = function(auth, settings) {
+        return new Session(auth, settings);
     };
     SessionFactory.dictionary = sessionDictionary;
     return SessionFactory;

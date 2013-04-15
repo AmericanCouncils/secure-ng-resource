@@ -26,11 +26,12 @@ describe('secure-ng-resource', function () {
                 manageRequestConf: function(httpConf) {
                     httpConf.headers = {};
                     httpConf.headers.Authorization = 'foo';
-                },
-                getHost: function() { return 'http://example.com:9001'; }
+                }
             };
-            resource = secureResourceFactory(mockSession, '/thing');
-
+            resource = secureResourceFactory(
+                mockSession,
+                'http://example.com:9001/thing'
+            );
         });
 
         it('allows session to add headers to GET requests', function () {
@@ -115,6 +116,7 @@ describe('secure-ng-resource', function () {
         var sessionFactory, ses, auth, loc;
         beforeEach(inject(function(session, $location) {
             auth = {
+                getAuthType: function() { return "mockAuth"; },
                 checkLoginResult: {
                     status: 'accepted',
                     newState: { user: 'someone' }
@@ -122,11 +124,9 @@ describe('secure-ng-resource', function () {
                 checkLogin: function(creds, handler) {
                     handler(this.checkLoginResult);
                 },
-
                 addAuthToRequestConf: function(httpConf, state) {
                     httpConf.headers.Authorization = "foo";
                 },
-
                 checkResponseResult: {},
                 checkResponse: function(response) {
                     return this.checkResponseResult;
@@ -137,7 +137,7 @@ describe('secure-ng-resource', function () {
             spyOn(auth, 'checkResponse').andCallThrough();
 
             sessionFactory = session;
-            ses = sessionFactory('localhost', auth);
+            ses = sessionFactory(auth);
             loc = $location;
             spyOn(loc, 'path').andCallFake(function(a) {
                 if (a) {
@@ -151,14 +151,13 @@ describe('secure-ng-resource', function () {
 
         it('has the correct initial state by default', function() {
             expect(ses.getUserName()).toBeUndefined();
-            expect(ses.getHost()).toEqual('localhost');
             expect(ses.loggedIn()).toEqual(false);
-            expect(ses.cookieKey()).toEqual('angular-localhost');
+            expect(ses.cookieKey()).toEqual('angular-mockAuth');
         });
 
         it('can use a custom cookie key', function () {
-            var ses2 = sessionFactory('bar', auth, {sessionName: 'foo'});
-            expect(ses2.cookieKey()).toEqual('foo-bar');
+            var ses2 = sessionFactory(auth, {sessionName: 'foo'});
+            expect(ses2.cookieKey()).toEqual('foo-mockAuth');
         });
 
         it('accepts logins which the authenticator approves', function() {
@@ -196,7 +195,7 @@ describe('secure-ng-resource', function () {
         });
 
         it('can reset after login to a custom path', function () {
-            var ses2 = sessionFactory('bar', auth, {defaultPostLoginPath: '/foo'});
+            var ses2 = sessionFactory(auth, {defaultPostLoginPath: '/foo'});
             ses2.login({user: 'alice', pass: 'swordfish'});
             expect(loc.path).toHaveBeenCalledWith('/foo');
             expect(loc.replace).toHaveBeenCalled();
@@ -238,7 +237,7 @@ describe('secure-ng-resource', function () {
         });
 
         it('can redirect to a custom login page', function () {
-            var ses2 = sessionFactory('bar', auth, {loginPath: '/welcome'});
+            var ses2 = sessionFactory(auth, {loginPath: '/welcome'});
             ses2.login({user: 'alice', pass: 'swordfish'});
             expect(loc.replace.calls.length).toEqual(1);
             ses2.logout();
@@ -298,6 +297,10 @@ describe('secure-ng-resource', function () {
         beforeEach(inject(function(passwordOAuth) {
             auth = passwordOAuth('https://example.com', 'my_id', 'my_secret');
         }));
+
+        it('returns the correct auth type', function () {
+            expect(auth.getAuthType()).toEqual("PasswordOAuth");
+        });
 
         it('makes valid token requests and calls handler with user', function () {
             $httpBackend.expectPOST(

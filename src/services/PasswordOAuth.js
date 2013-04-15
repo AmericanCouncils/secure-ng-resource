@@ -20,6 +20,10 @@ function($http) {
     };
 
     PasswordOAuth.prototype = {
+        getAuthType: function () {
+            return 'PasswordOAuth';
+        },
+
         checkLogin: function (credentials, handler) {
             $http({
                 method: 'POST',

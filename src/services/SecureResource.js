@@ -12,16 +12,15 @@ function($resource) {
         'delete': {method:'DELETE'}
     };
 
-    return function(session, path, paramDefaults, actions) {
+    return function(session, url, paramDefaults, actions) {
         var fullActions = angular.extend({}, DEFAULT_ACTIONS, actions);
         angular.forEach(fullActions, function(httpConf) {
-            // FIXME What about when auth headers change?
             session.manageRequestConf(httpConf);
         });
 
         // Escape the colon before a port number, it confuses ngResource
-        var host = session.getHost().replace(/(:\d+)$/g, '\\$1');
-        var res = $resource(host + path, paramDefaults, fullActions);
+        url = url.replace(/^([^\/].+?)(:\d+\/)/g, '$1\\$2');
+        var res = $resource(url, paramDefaults, fullActions);
 
         return res;
     };

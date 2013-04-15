@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/12/2013 16:09
+* Compiled At: 04/15/2013 09:46
 ***********************************************/
 (function(window) {
 'use strict';
@@ -85,7 +85,7 @@ function($http) {
         },
 
         checkResponse: function (response) {var authResult = {};
-            if (response.status !== 401) {
+            if (response.status === 401) {
                 authResult.authFailure = true;
             }
             return authResult;

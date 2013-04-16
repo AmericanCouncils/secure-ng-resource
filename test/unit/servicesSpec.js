@@ -30,7 +30,8 @@ describe('secure-ng-resource', function () {
             };
             resource = secureResourceFactory(
                 mockSession,
-                'http://example.com:9001/thing'
+                'http://example.com:9001/thing/:thingId',
+                {thingId: '@id'}
             );
         });
 
@@ -61,6 +62,28 @@ describe('secure-ng-resource', function () {
                 }
             ).respond({'name': 'whatsit'});
             resource.save({a: 1});
+            $httpBackend.flush();
+        });
+
+        it('allows session to add headers to requests through resource sub-objects', function () {
+            $httpBackend.expectGET(
+                'http://example.com:9001/thing'
+            ).respond([{name: 'whatsit', id: 3}]);
+            var things = resource.query({}, function () {
+                things[0].name = 'whosit';
+                $httpBackend.expectPOST(
+                    'http://example.com:9001/thing/3',
+                    {name: 'whosit', id: 3},
+                    {
+                        // Default headers added by angular
+                        Accept: 'application/json, text/plain, */*',
+                        'Content-Type': 'application/json;charset=utf-8',
+                        // Header added by session
+                        Authorization: 'foo'
+                    }
+                ).respond({name: 'whatsit'});
+                things[0].$save();
+            });
             $httpBackend.flush();
         });
     });

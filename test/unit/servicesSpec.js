@@ -31,11 +31,12 @@ describe('secure-ng-resource', function () {
             resource = secureResourceFactory(
                 mockSession,
                 'http://example.com:9001/thing/:thingId',
-                {thingId: '@id'}
-            );
+                {thingId: '@id'}, {
+                kickIt: {method:'PUT', params: {volume: 11}}
+            });
         });
 
-        it('allows session to add headers to GET requests', function () {
+        it('allows session to add headers to default GET requests', function () {
             $httpBackend.expectGET(
                 'http://example.com:9001/thing',
                 {
@@ -49,7 +50,7 @@ describe('secure-ng-resource', function () {
             $httpBackend.flush();
         });
 
-        it('allows session to add headers to POST requests', function () {
+        it('allows session to add headers to default POST requests', function () {
             $httpBackend.expectPOST(
                 'http://example.com:9001/thing',
                 {a: 1},
@@ -62,6 +63,22 @@ describe('secure-ng-resource', function () {
                 }
             ).respond({'name': 'whatsit'});
             resource.save({a: 1});
+            $httpBackend.flush();
+        });
+
+        it('allows session to add headers to custom action requests', function () {
+            $httpBackend.expectPUT(
+                'http://example.com:9001/thing?volume=11',
+                {a: 1},
+                {
+                    // Default headers added by angular
+                    Accept: 'application/json, text/plain, */*',
+                    'Content-Type': 'application/json;charset=utf-8',
+                    // Header added by session
+                    Authorization: 'foo'
+                }
+            ).respond({a: 1});
+            resource.kickIt({a: 1});
             $httpBackend.flush();
         });
 

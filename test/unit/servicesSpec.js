@@ -418,7 +418,7 @@ describe('secure-ng-resource', function () {
             expect(handler.mostRecentCall.args[0].msg).toMatch(/Were/);
         });
 
-        it('adds Authorization header with token to requests', function () {
+        it('adds Authorization header with token to res requests', function () {
             var state = {};
             var handler = function(result) {
                 state = result.newState;
@@ -440,10 +440,135 @@ describe('secure-ng-resource', function () {
             expect(httpConf.headers.Authorization).toEqual("Bearer abc");
         });
 
-        it('only treats HTTP responses with 401 status as auth fails', function () {
-            expect(auth.checkResponse({status: 401}).authFailure).toBeTruthy();
+        it('only treats res HTTP responses with 401 status as auth fails', function () {
             expect(auth.checkResponse({status: 200}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 400}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 401}).authFailure).toBeTruthy();
+            expect(auth.checkResponse({status: 403}).authFailure).toBeFalsy();
             expect(auth.checkResponse({status: 405}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 500}).authFailure).toBeFalsy();
+        });
+    });
+
+    describe('OpenIDAuth', function () {
+        var auth;
+        beforeEach(inject(function(openIDAuth) {
+            auth = openIDAuth(
+                'https://example.com',
+                '/openid_begin',
+                '/openid_finish',
+                'myCookie'
+            );
+            spyOn(window, 'open');
+            delete window.handleOpenIDResponse;
+        }));
+
+        it('returns the correct auth type', function () {
+            expect(auth.getAuthType()).toEqual('OpenIDAuth');
+        });
+
+        it('begins OpenID requests in a popup', function () {
+            auth.checkLogin({openid_identifier: 'foo'}, function() {});
+            expect(window.open).toHaveBeenCalledWith(
+                'https://example.com/openid_begin?openid_identifier=foo',
+                'openid_popup',
+                'width=450,height=500,location=1,status=1,resizable=yes'
+            );
+        });
+
+        it('creates and cleans up response handler', function () {
+            expect(window.handleOpenIDResponse).toBeUndefined();
+            auth.checkLogin({openid_identifier: 'foo'}, function() {});
+            expect(typeof window.handleOpenIDResponse).toBe('function');
+            $httpBackend.expectGET(
+                'https://example.com/openid_finish?abc=123'
+            ).respond({});
+            window.handleOpenIDResponse('abc=123');
+            $httpBackend.flush();
+            expect(window.handleOpenIDResponse).toBeUndefined();
+        });
+
+        it('calls handler correctly on approved logins', function () {
+            var handler = jasmine.createSpy('handler');
+            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            $httpBackend.expectGET(
+                'https://example.com/openid_finish?abc=123'
+            ).respond({approved: true, user: 'bob', cookieVal: 'xyz'});
+            window.handleOpenIDResponse('abc=123');
+            $httpBackend.flush();
+            expect(handler).toHaveBeenCalledWith({
+                status: 'accepted',
+                newState: { user: 'bob', cookieVal: 'xyz' }
+            })
+        });
+
+        it('calls handler correctly on denied logins', function () {
+            var handler = jasmine.createSpy('handler');
+            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            $httpBackend.expectGET(
+                'https://example.com/openid_finish?abc=123'
+            ).respond({approved: false, message: 'Foo'});
+            window.handleOpenIDResponse('abc=123');
+            $httpBackend.flush();
+            expect(handler).toHaveBeenCalledWith({
+                status: 'denied',
+                msg: 'Foo'
+            })
+        });
+
+        it('calls handler with default message on denied logins', function () {
+            var handler = jasmine.createSpy('handler');
+            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            $httpBackend.expectGET(
+                'https://example.com/openid_finish?abc=123'
+            ).respond({approved: false});
+            window.handleOpenIDResponse('abc=123');
+            $httpBackend.flush();
+            expect(handler).toHaveBeenCalledWith({
+                status: 'denied',
+                msg: 'Access denied'
+            })
+        });
+
+        it('calls handler correctly on HTTP failure', function () {
+            var handler = jasmine.createSpy('handler');
+            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            $httpBackend.when('GET', 'https://example.com/openid_finish?abc=123').
+                respond(500, "Internal Server Error, Oh Noes");
+            window.handleOpenIDResponse('abc=123');
+            $httpBackend.flush();
+            expect(handler.mostRecentCall.args[0].status).toEqual('error');
+            expect(handler.mostRecentCall.args[0].msg).toMatch(/500/);
+        });
+
+        it('adds cookie value to res requests', function () {
+            var state = {};
+            var handler = function(result) {
+                state = result.newState;
+            };
+            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            $httpBackend.expectGET(
+                'https://example.com/openid_finish?abc=123'
+            ).respond({approved: true, user: 'bob', cookieVal: 'xyz'});
+            window.handleOpenIDResponse('abc=123');
+            $httpBackend.flush();
+
+            var httpConf = {headers: {}};
+            auth.addAuthToRequestConf(httpConf, state);
+            expect(httpConf.headers.Cookie).toEqual('myCookie=xyz');
+
+            httpConf = {headers: {Cookie: 'baz=bork'}};
+            auth.addAuthToRequestConf(httpConf, state);
+            expect(httpConf.headers.Cookie).toEqual('baz=bork; myCookie=xyz');
+        });
+
+        it('only treats res 401/403 HTTP responses as auth fails', function () {
+            expect(auth.checkResponse({status: 200}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 400}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 401}).authFailure).toBeTruthy();
+            expect(auth.checkResponse({status: 402}).authFailure).toBeFalsy();
+            expect(auth.checkResponse({status: 403}).authFailure).toBeTruthy();
+            expect(auth.checkResponse({status: 404}).authFailure).toBeFalsy();
             expect(auth.checkResponse({status: 500}).authFailure).toBeFalsy();
         });
     });

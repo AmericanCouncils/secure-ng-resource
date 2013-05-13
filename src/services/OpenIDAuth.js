@@ -9,10 +9,9 @@ angular.module('secureNgResource')
 .factory('openIDAuth', [
 '$http',
 function($http) {
-    var OpenIDAuth = function (host, beginPath, endPath, cookieName) {
+    var OpenIDAuth = function (host, beginPath, cookieName) {
         this.host = host;
         this.beginPath = beginPath;
-        this.endPath = endPath;
         this.cookieName = cookieName;
     };
 
@@ -23,43 +22,32 @@ function($http) {
 
         checkLogin: function (credentials, handler) {
             var me = this;
-            window.handleOpenIDResponse = function(openidArgs) {
-                delete window.handleOpenIDResponse;
+            window.handleAuthResponse = function(d) {
+                console.log("AR")
+                delete window.handleAuthResponse;
 
-                $http({
-                    method: 'GET',
-                    url: me.host + me.endPath + '?' + openidArgs,
-                }).then(function(response) {
-                    if (response.status === 200) {
-                        var d = response.data;
-                        if (d.approved) {
-                            handler({
-                                status: 'accepted',
-                                newState: {
-                                    user: d.user,
-                                    cookieVal: d.cookieVal
-                                }
-                            });
-                        } else {
-                            handler({
-                                status: 'denied',
-                                msg: d.message || 'Access denied'
-                            });
+                if (d.approved) {
+                    handler({
+                        status: 'accepted',
+                        newState: {
+                            user: d.user,
+                            cookieVal: d.cookieVal
                         }
-                    } else {
-                        var msg = 'HTTP Status ' + response.status;
-                        handler({
-                            status: 'error',
-                            msg: msg
-                        });
-                    }
-                });
+                    });
+                } else {
+                    handler({
+                        status: 'denied',
+                        msg: d.message || 'Access denied'
+                    });
+                }
             };
 
             var url = this.host + this.beginPath + '?openid_identifier=' +
                 encodeURIComponent(credentials['openid_identifier']);
             var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
             window.open(url, 'openid_popup', opts);
+
+            // TODO Error if popup closes before handleAuthResponse firing
         },
 
         checkResponse: function (response) {
@@ -81,8 +69,8 @@ function($http) {
         }
     };
 
-    var OpenIDAuthFactory = function(host, beginPath, endPath, cookieName) {
-        return new OpenIDAuth(host, beginPath, endPath, cookieName);
+    var OpenIDAuthFactory = function(host, beginPath, cookieName) {
+        return new OpenIDAuth(host, beginPath, cookieName);
     };
     return OpenIDAuthFactory;
 }]);

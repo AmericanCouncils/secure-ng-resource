@@ -1,3 +1,4 @@
 - Documentation
 - Dealing with refresh tokens
 - What's with the OPTIONS stuff? Can we add headers, or turn it off, or what?
+- Take code which adds auth info to requests out of the Auth modules

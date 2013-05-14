@@ -2,8 +2,8 @@
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$cookieStore',
-function($q, $location, $cookieStore) {
+'$q', '$location', '$cookieStore', '$rootScope',
+function($q, $location, $cookieStore, $rootScope) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
@@ -59,6 +59,10 @@ function($q, $location, $cookieStore) {
                     var tgt = me.settings.defaultPostLoginPath;
                     if (me.priorPath !== null) { tgt = me.priorPath; }
                     $location.path(tgt).replace();
+                }
+
+                if (!$rootScope.$$phase) {
+                    $rootScope.$digest();
                 }
             };
 

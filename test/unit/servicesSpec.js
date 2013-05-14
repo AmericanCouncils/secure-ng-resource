@@ -451,14 +451,31 @@ describe('secure-ng-resource', function () {
     });
 
     describe('OpenIDAuth', function () {
-        var auth;
+        var auth, fakeInputElement, fakeFormElement, fakeDocument;
         beforeEach(inject(function(openIDAuth) {
             auth = openIDAuth(
                 'https://example.com',
                 '/openid_begin',
                 'myCookie'
             );
-            spyOn(window, 'open');
+
+            fakeInputElement = { value: null };
+            fakeFormElement = { submit: function() {} };
+            spyOn(fakeFormElement, 'submit');
+
+            fakeDocument = {
+                getElementById: function(id) {
+                    if (id == 'oid') { return fakeInputElement; }
+                    if (id == 'shimform') { return fakeFormElement; }
+                    throw "Invalid id requested";
+                },
+                write: function() {}
+            };
+            spyOn(fakeDocument, 'write');
+
+            var fakeWindow = { document: fakeDocument };
+            spyOn(window, 'open').andReturn(fakeWindow);
+
             delete window.handleAuthResponse;
         }));
 
@@ -466,13 +483,21 @@ describe('secure-ng-resource', function () {
             expect(auth.getAuthType()).toEqual('OpenIDAuth');
         });
 
-        it('begins OpenID requests in a popup', function () {
+        it('begins OpenID requests in a popup with a dynamic form', function () {
             auth.checkLogin({openid_identifier: 'foo'}, function() {});
             expect(window.open).toHaveBeenCalledWith(
-                'https://example.com/openid_begin?openid_identifier=foo',
+                '',
                 'openid_popup',
                 'width=450,height=500,location=1,status=1,resizable=yes'
             );
+            expect(fakeDocument.write).toHaveBeenCalledWith(
+                '<form id="shimform" method="post" ' +
+                'action="https://example.com/openid_begin">' +
+                '<input type="hidden" name="openid_identifier" id="oid" />' +
+                '</form>'
+            );
+            expect(fakeInputElement.value).toEqual('foo');
+            expect(fakeFormElement.submit).toHaveBeenCalled();
         });
 
         it('creates and cleans up response handler', function () {

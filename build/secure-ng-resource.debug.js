@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 05/14/2013 11:18
+* Compiled At: 05/14/2013 14:14
 ***********************************************/
 (function(window) {
 'use strict';
@@ -181,10 +181,18 @@ function() {
                 }
             };
 
-            var url = this.host + this.beginPath + '?openid_identifier=' +
-                encodeURIComponent(credentials['openid_identifier']);
             var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
-            window.open(url, 'openid_popup', opts);
+            var popup = window.open('', 'openid_popup', opts);
+            popup.document.write(
+                '<form id="shimform"' +
+                ' method="post"' +
+                ' action="' + this.host + this.beginPath + '">' +
+                '<input type="hidden" name="openid_identifier" id="oid" />' +
+                '</form>'
+            );
+            var oid = credentials['openid_identifier'];
+            popup.document.getElementById('oid').value = oid;
+            popup.document.getElementById('shimform').submit();
 
             // TODO Error if popup closes before handleAuthResponse firing
         },

@@ -456,11 +456,10 @@ describe('secure-ng-resource', function () {
             auth = openIDAuth(
                 'https://example.com',
                 '/openid_begin',
-                '/openid_finish',
                 'myCookie'
             );
             spyOn(window, 'open');
-            delete window.handleOpenIDResponse;
+            delete window.handleAuthResponse;
         }));
 
         it('returns the correct auth type', function () {
@@ -477,25 +476,18 @@ describe('secure-ng-resource', function () {
         });
 
         it('creates and cleans up response handler', function () {
-            expect(window.handleOpenIDResponse).toBeUndefined();
+            expect(window.handleAuthResponse).toBeUndefined();
             auth.checkLogin({openid_identifier: 'foo'}, function() {});
-            expect(typeof window.handleOpenIDResponse).toBe('function');
-            $httpBackend.expectGET(
-                'https://example.com/openid_finish?abc=123'
-            ).respond({});
-            window.handleOpenIDResponse('abc=123');
-            $httpBackend.flush();
-            expect(window.handleOpenIDResponse).toBeUndefined();
+            expect(typeof window.handleAuthResponse).toBe('function');
+            window.handleAuthResponse('abc=123');
+            expect(window.handleAuthResponse).toBeUndefined();
         });
 
         it('calls handler correctly on approved logins', function () {
             var handler = jasmine.createSpy('handler');
             auth.checkLogin({openid_identifier: 'foo'}, handler);
-            $httpBackend.expectGET(
-                'https://example.com/openid_finish?abc=123'
-            ).respond({approved: true, user: 'bob', cookieVal: 'xyz'});
-            window.handleOpenIDResponse('abc=123');
-            $httpBackend.flush();
+            var d = {approved: true, user: 'bob', cookieVal: 'xyz'};
+            window.handleAuthResponse(d);
             expect(handler).toHaveBeenCalledWith({
                 status: 'accepted',
                 newState: { user: 'bob', cookieVal: 'xyz' }
@@ -505,11 +497,8 @@ describe('secure-ng-resource', function () {
         it('calls handler correctly on denied logins', function () {
             var handler = jasmine.createSpy('handler');
             auth.checkLogin({openid_identifier: 'foo'}, handler);
-            $httpBackend.expectGET(
-                'https://example.com/openid_finish?abc=123'
-            ).respond({approved: false, message: 'Foo'});
-            window.handleOpenIDResponse('abc=123');
-            $httpBackend.flush();
+            var d = {approved: false, message: 'Foo'};
+            window.handleAuthResponse(d);
             expect(handler).toHaveBeenCalledWith({
                 status: 'denied',
                 msg: 'Foo'
@@ -519,27 +508,29 @@ describe('secure-ng-resource', function () {
         it('calls handler with default message on denied logins', function () {
             var handler = jasmine.createSpy('handler');
             auth.checkLogin({openid_identifier: 'foo'}, handler);
-            $httpBackend.expectGET(
-                'https://example.com/openid_finish?abc=123'
-            ).respond({approved: false});
-            window.handleOpenIDResponse('abc=123');
-            $httpBackend.flush();
+            var d = {approved: false};
+            window.handleAuthResponse(d);
             expect(handler).toHaveBeenCalledWith({
                 status: 'denied',
                 msg: 'Access denied'
             })
         });
 
+        // TODO: Somehow can we tell if window.open wasn't able to get to
+        // the target URL? Or if the dialog was closed without handleAuth being
+        // called?
+        /*
         it('calls handler correctly on HTTP failure', function () {
             var handler = jasmine.createSpy('handler');
             auth.checkLogin({openid_identifier: 'foo'}, handler);
             $httpBackend.when('GET', 'https://example.com/openid_finish?abc=123').
                 respond(500, "Internal Server Error, Oh Noes");
-            window.handleOpenIDResponse('abc=123');
+            window.handleAuthResponse('abc=123');
             $httpBackend.flush();
             expect(handler.mostRecentCall.args[0].status).toEqual('error');
             expect(handler.mostRecentCall.args[0].msg).toMatch(/500/);
         });
+        */
 
         it('adds cookie value to res requests', function () {
             var state = {};
@@ -547,11 +538,8 @@ describe('secure-ng-resource', function () {
                 state = result.newState;
             };
             auth.checkLogin({openid_identifier: 'foo'}, handler);
-            $httpBackend.expectGET(
-                'https://example.com/openid_finish?abc=123'
-            ).respond({approved: true, user: 'bob', cookieVal: 'xyz'});
-            window.handleOpenIDResponse('abc=123');
-            $httpBackend.flush();
+            var d = {approved: true, user: 'bob', cookieVal: 'xyz'};
+            window.handleAuthResponse(d);
 
             var httpConf = {headers: {}};
             auth.addAuthToRequestConf(httpConf, state);

@@ -2,13 +2,12 @@
 
 // No-refresh OpenID approach based on Brian Ellin's:
 // http://openid-demo.appspot.com/
-// Based in turn on a post by Luke Shepard:
+// Which was based in turn on a post by Luke Shepard:
 // http://www.sociallipstick.com/?p=86
 
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$http',
-function($http) {
+function() {
     var OpenIDAuth = function (host, beginPath, cookieName) {
         this.host = host;
         this.beginPath = beginPath;
@@ -21,11 +20,8 @@ function($http) {
         },
 
         checkLogin: function (credentials, handler) {
-            var me = this;
             window.handleAuthResponse = function(d) {
-                console.log("AR")
                 delete window.handleAuthResponse;
-
                 if (d.approved) {
                     handler({
                         status: 'accepted',

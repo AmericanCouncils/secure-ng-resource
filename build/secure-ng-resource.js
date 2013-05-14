@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 05/08/2013 10:48
+* Compiled At: 05/14/2013 11:19
 ***********************************************/
 (function(window) {
 'use strict';
@@ -140,12 +140,10 @@ function($q, $location, $cookieStore) {
 
 'use strict';angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$http',
-function($http) {
-    var OpenIDAuth = function (host, beginPath, endPath, cookieName) {
+function() {
+    var OpenIDAuth = function (host, beginPath, cookieName) {
         this.host = host;
         this.beginPath = beginPath;
-        this.endPath = endPath;
         this.cookieName = cookieName;
     };
 
@@ -155,45 +153,28 @@ function($http) {
         },
 
         checkLogin: function (credentials, handler) {
-            var me = this;
-            window.handleOpenIDResponse = function(openidArgs) {
-                delete window.handleOpenIDResponse;
-
-                $http({
-                    method: 'GET',
-                    url: me.host + me.endPath + '?' + openidArgs,
-                }).then(function(response) {
-                    if (response.status === 200) {
-                        var d = response.data;
-                        if (d.approved) {
-                            handler({
-                                status: 'accepted',
-                                newState: {
-                                    user: d.user,
-                                    cookieVal: d.cookieVal
-                                }
-                            });
-                        } else {
-                            handler({
-                                status: 'denied',
-                                msg: d.message || 'Access denied'
-                            });
+            window.handleAuthResponse = function(d) {
+                delete window.handleAuthResponse;
+                if (d.approved) {
+                    handler({
+                        status: 'accepted',
+                        newState: {
+                            user: d.user,
+                            cookieVal: d.cookieVal
                         }
-                    } else {
-                        var msg = 'HTTP Status ' + response.status;
-                        handler({
-                            status: 'error',
-                            msg: msg
-                        });
-                    }
-                });
+                    });
+                } else {
+                    handler({
+                        status: 'denied',
+                        msg: d.message || 'Access denied'
+                    });
+                }
             };
 
             var url = this.host + this.beginPath + '?openid_identifier=' +
                 encodeURIComponent(credentials['openid_identifier']);
             var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
-            window.open(url, 'openid_popup', opts);
-        },
+            window.open(url, 'openid_popup', opts);},
 
         checkResponse: function (response) {
             var authResult = {};
@@ -214,8 +195,8 @@ function($http) {
         }
     };
 
-    var OpenIDAuthFactory = function(host, beginPath, endPath, cookieName) {
-        return new OpenIDAuth(host, beginPath, endPath, cookieName);
+    var OpenIDAuthFactory = function(host, beginPath, cookieName) {
+        return new OpenIDAuth(host, beginPath, cookieName);
     };
     return OpenIDAuthFactory;
 }]);

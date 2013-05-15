@@ -455,8 +455,7 @@ describe('secure-ng-resource', function () {
         beforeEach(inject(function(openIDAuth) {
             auth = openIDAuth(
                 'https://example.com',
-                '/openid_begin',
-                'myCookie'
+                '/openid_begin'
             );
 
             fakeInputElement = { value: null };
@@ -511,11 +510,11 @@ describe('secure-ng-resource', function () {
         it('calls handler correctly on approved logins', function () {
             var handler = jasmine.createSpy('handler');
             auth.checkLogin({openid_identifier: 'foo'}, handler);
-            var d = {approved: true, user: 'bob', cookieVal: 'xyz'};
+            var d = {approved: true, user: 'bob', sessionId: 'xyz'};
             window.handleAuthResponse(d);
             expect(handler).toHaveBeenCalledWith({
                 status: 'accepted',
-                newState: { user: 'bob', cookieVal: 'xyz' }
+                newState: { user: 'bob', sessionId: 'xyz' }
             })
         });
 
@@ -557,22 +556,18 @@ describe('secure-ng-resource', function () {
         });
         */
 
-        it('adds cookie value to res requests', function () {
+        it('adds auth header to res requests', function () {
             var state = {};
             var handler = function(result) {
                 state = result.newState;
             };
             auth.checkLogin({openid_identifier: 'foo'}, handler);
-            var d = {approved: true, user: 'bob', cookieVal: 'xyz'};
+            var d = {approved: true, user: 'bob', sessionId: 'xyz'};
             window.handleAuthResponse(d);
 
             var httpConf = {headers: {}};
             auth.addAuthToRequestConf(httpConf, state);
-            expect(httpConf.headers.Cookie).toEqual('myCookie=xyz');
-
-            httpConf = {headers: {Cookie: 'baz=bork'}};
-            auth.addAuthToRequestConf(httpConf, state);
-            expect(httpConf.headers.Cookie).toEqual('baz=bork; myCookie=xyz');
+            expect(httpConf.headers.Authorization).toEqual('SesID xyz');
         });
 
         it('only treats res 401/403 HTTP responses as auth fails', function () {

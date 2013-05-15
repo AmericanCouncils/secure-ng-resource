@@ -8,10 +8,9 @@
 angular.module('secureNgResource')
 .factory('openIDAuth', [
 function() {
-    var OpenIDAuth = function (host, beginPath, cookieName) {
+    var OpenIDAuth = function (host, beginPath) {
         this.host = host;
         this.beginPath = beginPath;
-        this.cookieName = cookieName;
     };
 
     OpenIDAuth.prototype = {
@@ -27,7 +26,7 @@ function() {
                         status: 'accepted',
                         newState: {
                             user: d.user,
-                            cookieVal: d.cookieVal
+                            sessionId: d.sessionId
                         }
                     });
                 } else {
@@ -63,18 +62,12 @@ function() {
         },
 
         addAuthToRequestConf: function (httpConf, state) {
-            var cookie = this.cookieName + '=' +
-                encodeURIComponent(state.cookieVal);
-            if (httpConf.headers.Cookie) {
-                httpConf.headers.Cookie += '; ' + cookie;
-            } else {
-                httpConf.headers.Cookie =  cookie;
-            }
+            httpConf.headers.Authorization = 'SesID ' + state.sessionId;
         }
     };
 
-    var OpenIDAuthFactory = function(host, beginPath, cookieName) {
-        return new OpenIDAuth(host, beginPath, cookieName);
+    var OpenIDAuthFactory = function(host, beginPath) {
+        return new OpenIDAuth(host, beginPath);
     };
     return OpenIDAuthFactory;
 }]);

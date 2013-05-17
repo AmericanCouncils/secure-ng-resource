@@ -2,11 +2,12 @@
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$cookieStore', '$rootScope',
-function($q, $location, $cookieStore, $rootScope) {
+'$q', '$location', '$cookieStore', '$injector', '$rootScope',
+function($q, $location, $cookieStore, $injector, $rootScope) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
+        logoutUrl: null,
         defaultPostLoginPath: '/'
     };
 
@@ -72,6 +73,15 @@ function($q, $location, $cookieStore, $rootScope) {
         logout: function () {
             if (this.loggedIn()) {
                 this.reset();
+                if (this.settings.logoutUrl !== null) {
+                    // FIXME Can't depend on $http directly, causes a false
+                    // alarm for circular dependency :-(
+                    var http = $injector.get('$http');
+                    http({
+                        method: 'GET',
+                        url: this.settings.logoutUrl
+                    });
+                }
                 $location.path(this.settings.loginPath);
             }
         },

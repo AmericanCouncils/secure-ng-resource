@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 05/15/2013 11:48
+* Compiled At: 05/17/2013 18:21
 ***********************************************/
 (function(window) {
 'use strict';
@@ -15,11 +15,12 @@ angular.module('secureNgResource', [
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$cookieStore', '$rootScope',
-function($q, $location, $cookieStore, $rootScope) {
+'$q', '$location', '$cookieStore', '$injector', '$rootScope',
+function($q, $location, $cookieStore, $injector, $rootScope) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
+        logoutUrl: null,
         defaultPostLoginPath: '/'
     };
 
@@ -82,6 +83,12 @@ function($q, $location, $cookieStore, $rootScope) {
         logout: function () {
             if (this.loggedIn()) {
                 this.reset();
+                if (this.settings.logoutUrl !== null) {var http = $injector.get('$http');
+                    http({
+                        method: 'GET',
+                        url: this.settings.logoutUrl
+                    });
+                }
                 $location.path(this.settings.loginPath);
             }
         },

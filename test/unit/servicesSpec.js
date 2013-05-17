@@ -228,6 +228,15 @@ describe('secure-ng-resource', function () {
             expect(ses.loggedIn()).toEqual(false);
         });
 
+        it('sends a synchronous request to a logout path if there is one', function() {
+            var ses2 = sessionFactory(auth, {logoutUrl: 'http://example.com:9001/logmeout'});
+            ses2.login({user: 'alice', pass: 'swordfish'});
+            $httpBackend.expectGET('http://example.com:9001/logmeout')
+                .respond({loggedOut: true});
+            ses2.logout();
+            $httpBackend.flush();
+        });
+
         it('resets location to / after a successful login by default', function () {
             ses.login({user: 'alice', pass: 'swordfish'});
             expect(loc.path).toHaveBeenCalledWith('/');

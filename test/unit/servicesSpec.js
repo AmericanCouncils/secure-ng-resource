@@ -231,13 +231,13 @@ describe('secure-ng-resource', function () {
         it('sends a synchronous request to a logout path if there is one', function() {
             var ses2 = sessionFactory(auth, {logoutUrl: 'http://example.com:9001/logmeout'});
             ses2.login({user: 'alice', pass: 'swordfish'});
-            $httpBackend.expectGET(
-                'http://example.com:9001/logmeout', {
+            $httpBackend.expectPOST(
+                'http://example.com:9001/logmeout', '', {
                     'Authorization': 'foo',
-                    'Accept': 'application/json, text/plain, */*'
+                    'Accept': 'application/json, text/plain, */*',
+                    'Content-Type': 'application/json;charset=utf-8',
                 }
-            )
-                .respond({loggedOut: true});
+            ).respond({loggedOut: true});
             ses2.logout();
             $httpBackend.flush();
         });

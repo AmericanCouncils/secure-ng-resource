@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 05/20/2013 10:48
+* Compiled At: 05/20/2013 10:59
 ***********************************************/
 (function(window) {
 'use strict';
@@ -90,7 +90,8 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
                     // alarm for circular dependency :-(
                     var http = $injector.get('$http');
                     var httpConf = {
-                        method: 'GET',
+                        method: 'POST',
+                        data: '',
                         url: this.settings.logoutUrl
                     };
                     this.updateRequestConf(httpConf);

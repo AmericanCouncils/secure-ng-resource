@@ -77,7 +77,8 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
                     // alarm for circular dependency :-(
                     var http = $injector.get('$http');
                     var httpConf = {
-                        method: 'GET',
+                        method: 'POST',
+                        data: '',
                         url: this.settings.logoutUrl
                     };
                     this.updateRequestConf(httpConf);

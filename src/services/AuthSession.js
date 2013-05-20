@@ -72,16 +72,18 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
 
         logout: function () {
             if (this.loggedIn()) {
-                this.reset();
                 if (this.settings.logoutUrl !== null) {
                     // FIXME Can't depend on $http directly, causes a false
                     // alarm for circular dependency :-(
                     var http = $injector.get('$http');
-                    http({
+                    var httpConf = {
                         method: 'GET',
                         url: this.settings.logoutUrl
-                    });
+                    };
+                    this.updateRequestConf(httpConf);
+                    http(httpConf);
                 }
+                this.reset();
                 $location.path(this.settings.loginPath);
             }
         },

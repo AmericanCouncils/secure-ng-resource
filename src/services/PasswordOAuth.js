@@ -75,6 +75,8 @@ function($http) {
             });
         },
 
+        cancelLogin: function () {}, // TODO Cancel any current HTTP request
+
         checkResponse: function (response) {
             // TODO: If our access_token is getting stale, then get a new one,
             // and have the session update the request configs

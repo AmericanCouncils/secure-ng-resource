@@ -21,6 +21,8 @@ function() {
         checkLogin: function (credentials, handler) {
             window.handleAuthResponse = function(d) {
                 delete window.handleAuthResponse;
+                delete window.openIdPopup;
+
                 if (d.approved) {
                     handler({
                         status: 'accepted',
@@ -50,7 +52,16 @@ function() {
             popup.document.getElementById('oid').value = oid;
             popup.document.getElementById('shimform').submit();
 
-            // TODO Error if popup closes before handleAuthResponse firing
+            window.openIdPopup = popup;
+        },
+
+        cancelLogin: function() {
+            if (_.has(window, 'openIdPopup')) {
+                window.openIdPopup.close();
+
+                delete window.openIdPopup;
+                delete window.handleAuthResponse;
+            }
         },
 
         checkResponse: function (response) {

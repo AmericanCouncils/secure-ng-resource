@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 05/20/2013 11:00
+* Compiled At: 05/28/2013 13:57
 ***********************************************/
 (function(window) {
 'use strict';
@@ -78,6 +78,10 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
             };
 
             this.auth.checkLogin(credentials, handler);
+        },
+
+        cancelLogin: function () {
+            this.auth.cancelLogin();
         },
 
         logout: function () {
@@ -168,6 +172,8 @@ function() {
         checkLogin: function (credentials, handler) {
             window.handleAuthResponse = function(d) {
                 delete window.handleAuthResponse;
+                delete window.openIdPopup;
+
                 if (d.approved) {
                     handler({
                         status: 'accepted',
@@ -195,7 +201,19 @@ function() {
             );
             var oid = credentials['openid_identifier'];
             popup.document.getElementById('oid').value = oid;
-            popup.document.getElementById('shimform').submit();},
+            popup.document.getElementById('shimform').submit();
+
+            window.openIdPopup = popup;
+        },
+
+        cancelLogin: function() {
+            if (_.has(window, 'openIdPopup')) {
+                window.openIdPopup.close();
+
+                delete window.openIdPopup;
+                delete window.handleAuthResponse;
+            }
+        },
 
         checkResponse: function (response) {
             var authResult = {};
@@ -293,7 +311,7 @@ function($http) {
             });
         },
 
-        checkResponse: function (response) {var authResult = {};
+        cancelLogin: function () {},checkResponse: function (response) {var authResult = {};
             if (response.status === 401) {
                 authResult.authFailure = true;
             }

@@ -70,6 +70,10 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
             this.auth.checkLogin(credentials, handler);
         },
 
+        cancelLogin: function () {
+            this.auth.cancelLogin();
+        },
+
         logout: function () {
             if (this.loggedIn()) {
                 if (this.settings.logoutUrl !== null) {

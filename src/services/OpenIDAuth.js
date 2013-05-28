@@ -39,6 +39,11 @@ function() {
                 }
             };
 
+            if (_.has(window, 'openIdPopup')) {
+                window.openIdPopup.focus();
+                return;
+            }
+
             var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
             var popup = window.open('', 'openid_popup', opts);
             popup.document.write(
@@ -51,7 +56,6 @@ function() {
             var oid = credentials['openid_identifier'];
             popup.document.getElementById('oid').value = oid;
             popup.document.getElementById('shimform').submit();
-
             window.openIdPopup = popup;
         },
 

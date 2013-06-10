@@ -39,8 +39,10 @@ function() {
                 }
             };
 
-            if (_.has(window, 'openIdPopup')) {
-                window.openIdPopup.focus();
+            if (window.hasOwnProperty('openIdPopup')) {
+                if ('focus' in window.openIdPopup) {
+                    window.openIdPopup.focus();
+                }
                 return;
             }
 
@@ -60,7 +62,7 @@ function() {
         },
 
         cancelLogin: function() {
-            if (_.has(window, 'openIdPopup')) {
+            if (window.hasOwnProperty('openIdPopup')) {
                 window.openIdPopup.close();
 
                 delete window.openIdPopup;

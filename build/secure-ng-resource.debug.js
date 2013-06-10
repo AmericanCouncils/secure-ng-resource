@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 05/20/2013 10:59
+* Compiled At: 06/10/2013 14:03
 ***********************************************/
 (function(window) {
 'use strict';
@@ -81,6 +81,10 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
             };
 
             this.auth.checkLogin(credentials, handler);
+        },
+
+        cancelLogin: function () {
+            this.auth.cancelLogin();
         },
 
         logout: function () {
@@ -181,6 +185,8 @@ function() {
         checkLogin: function (credentials, handler) {
             window.handleAuthResponse = function(d) {
                 delete window.handleAuthResponse;
+                delete window.openIdPopup;
+
                 if (d.approved) {
                     handler({
                         status: 'accepted',
@@ -197,6 +203,13 @@ function() {
                 }
             };
 
+            if (window.hasOwnProperty('openIdPopup')) {
+                if ('focus' in window.openIdPopup) {
+                    window.openIdPopup.focus();
+                }
+                return;
+            }
+
             var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
             var popup = window.open('', 'openid_popup', opts);
             popup.document.write(
@@ -209,8 +222,16 @@ function() {
             var oid = credentials['openid_identifier'];
             popup.document.getElementById('oid').value = oid;
             popup.document.getElementById('shimform').submit();
+            window.openIdPopup = popup;
+        },
 
-            // TODO Error if popup closes before handleAuthResponse firing
+        cancelLogin: function() {
+            if (window.hasOwnProperty('openIdPopup')) {
+                window.openIdPopup.close();
+
+                delete window.openIdPopup;
+                delete window.handleAuthResponse;
+            }
         },
 
         checkResponse: function (response) {
@@ -308,6 +329,8 @@ function($http) {
                 }
             });
         },
+
+        cancelLogin: function () {}, // TODO Cancel any current HTTP request
 
         checkResponse: function (response) {
             // TODO: If our access_token is getting stale, then get a new one,

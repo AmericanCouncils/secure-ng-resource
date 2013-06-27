@@ -7,7 +7,8 @@
 
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-function() {
+'$q',
+function($q) {
     var OpenIDAuth = function (host, beginPath) {
         this.host = host;
         this.beginPath = beginPath;
@@ -18,20 +19,22 @@ function() {
             return 'OpenIDAuth';
         },
 
-        checkLogin: function (credentials, handler) {
+        checkLogin: function (credentials) {
+            var deferred = $q.defer();
+
             window.handleAuthResponse = function(d) {
                 delete window.handleAuthResponse;
                 delete window.openIdPopup;
 
                 if (d.approved) {
-                    handler({
+                    deferred.resolve({
                         status: 'accepted',
                         newState: {
                             sessionId: d.sessionId
                         }
                     });
                 } else {
-                    handler({
+                    deferred.reject({
                         status: 'denied',
                         msg: d.message || 'Access denied'
                     });
@@ -58,6 +61,8 @@ function() {
             popup.document.getElementById('oid').value = oid;
             popup.document.getElementById('shimform').submit();
             window.openIdPopup = popup;
+
+            return deferred.promise;
         },
 
         cancelLogin: function() {
@@ -69,9 +74,12 @@ function() {
             }
         },
 
-        refreshLogin: function(/*handler*/) {
-            // Do nothing
-            // TODO Do a no-op request just to keep session fresh?
+        refreshLogin: function(/*state*/) {
+            // Maybe should do a no-op http request to keep session fresh?
+            var deferred = $q.defer();
+            var p = deferred.promise;
+            deferred.reject();
+            return p;
         },
 
         checkResponse: function (response) {

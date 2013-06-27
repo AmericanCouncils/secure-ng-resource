@@ -47,29 +47,19 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             return this.state !== null;
         },
 
-        login: function (credentials, callbacks) {
+        login: function (credentials) {
             var me = this;
-            this.auth.checkLogin(credentials, function(result) {
-                if (result.status === 'accepted') {
-                    me.state = result.newState;
-                    // FIXME This is silly
-                    if (!('user' in me.state)) {
-                        me.state.user = credentials.user;
-                    }
-                    me._onStateChange();
-
-                    var tgt = me.settings.defaultPostLoginPath;
-                    if (me.priorPath !== null) { tgt = me.priorPath; }
-                    $location.path(tgt).replace();
+            return this.auth.checkLogin(credentials).then(function(result) {
+                me.state = result.newState;
+                // FIXME This is silly
+                if (me.state !== null && !('user' in me.state)) {
+                    me.state.user = credentials.user;
                 }
+                me._onStateChange();
 
-                if (angular.isObject(callbacks) && callbacks[result.status]) {
-                    callbacks[result.status](result);
-                }
-
-                if (!$rootScope.$$phase) {
-                    $rootScope.$digest();
-                }
+                var tgt = me.settings.defaultPostLoginPath;
+                if (me.priorPath !== null) { tgt = me.priorPath; }
+                $location.path(tgt).replace();
             });
         },
 
@@ -82,39 +72,38 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
                 throw 'Cannot refresh, not logged in.';
             }
             
+            // FIXME Do something about failure, maybe retry soonish
             var me = this;
-            this.auth.refreshLogin(this.state, function(result) {
-                if (result.status === 'accepted') {
-                    var origUser = me.state.user;
-                    me.state = result.newState;
-                    // FIXME This is silly
-                    if (!('user' in me.state)) {
-                        me.state.user = origUser;
-                    }
-                    me._onStateChange();
-                } else {
-                    // FIXME Do something about this, maybe retry soonish
+            return this.auth.refreshLogin(this.state).then(function(result) {
+                var origUser = me.state.user;
+                me.state = result.newState;
+                // FIXME This is silly
+                if (me.state !== null && !('user' in me.state)) {
+                    me.state.user = origUser;
                 }
+                me._onStateChange();
             });
         },
 
         logout: function () {
-            if (this.loggedIn()) {
-                if (this.settings.logoutUrl !== null) {
-                    // FIXME Can't depend on $http directly, causes a false
-                    // alarm for circular dependency :-(
-                    var http = $injector.get('$http');
-                    var httpConf = {
-                        method: 'POST',
-                        data: '',
-                        url: this.settings.logoutUrl
-                    };
-                    this.updateRequestConf(httpConf);
-                    http(httpConf);
-                }
-                this.reset();
-                $location.path(this.settings.loginPath);
+            if (!this.loggedIn()) {
+                return;
             }
+
+            if (this.settings.logoutUrl !== null) {
+                // FIXME Can't depend on $http directly, causes a false
+                // alarm for circular dependency :-(
+                var http = $injector.get('$http');
+                var httpConf = {
+                    method: 'POST',
+                    data: '',
+                    url: this.settings.logoutUrl
+                };
+                this.updateRequestConf(httpConf);
+                http(httpConf);
+            }
+            this.reset();
+            $location.path(this.settings.loginPath);
         },
 
         reset: function () {

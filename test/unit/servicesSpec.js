@@ -107,7 +107,7 @@ describe('secure-ng-resource', function () {
 
     describe('HTTP Interception', function () {
         var mockSession, http;
-        beforeEach(inject(function(authSession, $http) {
+        beforeEach(inject(function(authSession, $http, $q) {
             http = $http;
             mockSession = jasmine.createSpyObj('session', ['handleHttpResponse']);
             authSession.dictionary['someSession'] = mockSession;
@@ -153,16 +153,22 @@ describe('secure-ng-resource', function () {
     });
 
     describe('AuthSession', function () {
-        var sessionFactory, ses, auth, loc, timeout;
-        beforeEach(inject(function(authSession, $location, $timeout) {
+        var sessionFactory, ses, auth, loc, timeout, q;
+        beforeEach(inject(function(authSession, $location, $timeout, $q) {
             auth = {
                 getAuthType: function() { return "mockAuth"; },
                 checkLoginResult: {
                     status: 'accepted',
                     newState: { user: 'someone' }
                 },
-                checkLogin: function(creds, handler) {
-                    handler(this.checkLoginResult);
+                checkLogin: function(creds) {
+                    var deferred = q.defer();
+                    if (this.checkLoginResult.status === 'accepted') {
+                        deferred.resolve(this.checkLoginResult);
+                    } else {
+                        deferred.reject(this.checkLoginResult);
+                    }
+                    return deferred.promise;
                 },
                 addAuthToRequestConf: function(httpConf, state) {
                     httpConf.headers.Authorization = "foo";
@@ -171,7 +177,15 @@ describe('secure-ng-resource', function () {
                 checkResponse: function(response) {
                     return this.checkResponseResult;
                 },
-                refreshLogin: {}
+                refreshLogin: function(state) {
+                    var deferred = q.defer();
+                    var p = deferred.promise;
+                    deferred.resolve({
+                        status: 'accepted',
+                        newState: state
+                    });
+                    return p;
+                }
             };
             spyOn(auth, 'checkLogin').andCallThrough();
             spyOn(auth, 'addAuthToRequestConf').andCallThrough();
@@ -190,6 +204,7 @@ describe('secure-ng-resource', function () {
             spyOn(loc, 'replace').andReturn(loc);
 
             timeout = $timeout;
+            q = $q;
         }));
 
         it('has the correct initial state by default', function() {
@@ -206,6 +221,7 @@ describe('secure-ng-resource', function () {
         it('accepts logins which the authenticator approves', function() {
             auth.checkLoginResult.newState.user = 'alice';
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(ses.getUserName()).toEqual('alice');
             expect(ses.loggedIn()).toEqual(true);
         });
@@ -213,14 +229,17 @@ describe('secure-ng-resource', function () {
         it('denies logins which the authenticator does not approve', function() {
             auth.checkLoginResult =  { status: 'denied', msg: 'And stay out' };
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(ses.getUserName()).toBeUndefined();
             expect(ses.loggedIn()).toEqual(false);
         });
 
         it('creates a refresh timeout if requested by login result', function() {
             auth.checkLoginResult.newState.millisecondsToRefresh = 10000;
-            spyOn(auth, 'refreshLogin');
             ses.login({user: 'alice', pass: 'swordfish'});
+            spyOn(auth, 'refreshLogin').andCallThrough();
+            $scope.$apply();
+
             expect(auth.refreshLogin).not.toHaveBeenCalled();
             timeout.flush();
             expect(auth.refreshLogin).toHaveBeenCalled();
@@ -230,6 +249,7 @@ describe('secure-ng-resource', function () {
             auth.checkLoginResult.newState.millisecondsToRefresh = 10000;
             spyOn(auth, 'refreshLogin');
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(auth.refreshLogin).not.toHaveBeenCalled();
             ses.logout();
 
@@ -243,8 +263,10 @@ describe('secure-ng-resource', function () {
             auth.checkLoginResult.newState.millisecondsToRefresh = 10000;
             spyOn(auth, 'refreshLogin');
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             delete auth.checkLoginResult.newState.millisecondsToRefresh;
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
 
             timeout(function() {}, 10000); // Fake event so flush doesn't complain
             timeout.flush();
@@ -254,10 +276,12 @@ describe('secure-ng-resource', function () {
 
         it('replaces any refresh timeout on new login with refresh', function() {
             auth.checkLoginResult.newState.millisecondsToRefresh = 10000;
-            spyOn(auth, 'refreshLogin');
+            spyOn(auth, 'refreshLogin').andCallThrough();
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             auth.checkLoginResult.newState.user = 'someone_else';
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
 
             timeout(function() {}, 10000); // Fake event so flush doesn't complain
             timeout.flush();
@@ -265,7 +289,7 @@ describe('secure-ng-resource', function () {
             expect(auth.refreshLogin).toHaveBeenCalledWith({
                 millisecondsToRefresh: 10000,
                 user: 'someone_else'
-            }, jasmine.any(Function));
+            });
             expect(auth.refreshLogin.callCount).toEqual(1);
         });
 
@@ -286,6 +310,7 @@ describe('secure-ng-resource', function () {
         it('sends a synchronous request to a logout path if there is one', function() {
             var ses2 = sessionFactory(auth, {logoutUrl: 'http://example.com:9001/logmeout'});
             ses2.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             $httpBackend.expectPOST(
                 'http://example.com:9001/logmeout', '', {
                     'Authorization': 'foo',
@@ -294,11 +319,13 @@ describe('secure-ng-resource', function () {
                 }
             ).respond({loggedOut: true});
             ses2.logout();
+            $scope.$apply();
             $httpBackend.flush();
         });
 
         it('resets location to / after a successful login by default', function () {
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(loc.path).toHaveBeenCalledWith('/');
             expect(loc.replace).toHaveBeenCalled();
         });
@@ -306,6 +333,7 @@ describe('secure-ng-resource', function () {
         it('can reset after login to a custom path', function () {
             var ses2 = sessionFactory(auth, {defaultPostLoginPath: '/foo'});
             ses2.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(loc.path).toHaveBeenCalledWith('/foo');
             expect(loc.replace).toHaveBeenCalled();
         });
@@ -333,14 +361,17 @@ describe('secure-ng-resource', function () {
             auth.checkResponseResult = { authFailure: true };
             ses.handleHttpResponse();
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(loc.path).toHaveBeenCalledWith('/some/resource');
             expect(loc.replace).toHaveBeenCalled();
         });
 
         it('redirects to /login after logout by default', function () {
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(loc.replace.calls.length).toEqual(1);
             ses.logout();
+            $scope.$apply();
             expect(loc.path).toHaveBeenCalledWith('/login');
             expect(loc.replace.calls.length).toEqual(1);
         });
@@ -348,8 +379,10 @@ describe('secure-ng-resource', function () {
         it('can redirect to a custom login page', function () {
             var ses2 = sessionFactory(auth, {loginPath: '/welcome'});
             ses2.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(loc.replace.calls.length).toEqual(1);
             ses2.logout();
+            $scope.$apply();
             expect(loc.path).toHaveBeenCalledWith('/welcome');
             expect(loc.replace.calls.length).toEqual(1);
         });
@@ -360,8 +393,10 @@ describe('secure-ng-resource', function () {
 
             expect(httpConf.headers.Authorization).toBeUndefined();
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(httpConf.headers.Authorization).toBeDefined();
             ses.reset();
+            $scope.$apply();
             expect(httpConf.headers.Authorization).toBeUndefined();
         });
 
@@ -370,34 +405,11 @@ describe('secure-ng-resource', function () {
             ses.manageRequestConf(httpConf);
             expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
             ses.login({user: 'alice', pass: 'swordfish'});
+            $scope.$apply();
             expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
             ses.reset();
+            $scope.$apply();
             expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
-        });
-
-        it('calls appropriate login callbacks depending on checkLogin', function () {
-            var loginCallbacks = jasmine.createSpyObj('callbacks', [
-                'accepted', 'denied', 'error'
-            ]);
-
-            ses.login({user: 'alice', pass: 'swordfish'}, loginCallbacks);
-            expect(loginCallbacks.accepted).toHaveBeenCalledWith(
-                auth.checkLoginResult
-            );
-            expect(loginCallbacks.denied).not.toHaveBeenCalled();
-            expect(loginCallbacks.error).not.toHaveBeenCalled();
-
-            auth.checkLoginResult = {status: 'denied', msg: 'Go away'};
-            ses.login({user: 'alice', pass: 'swordfish'}, loginCallbacks);
-            expect(loginCallbacks.denied).toHaveBeenCalledWith(
-                auth.checkLoginResult
-            );
-
-            auth.checkLoginResult = {status: 'error', msg: 'Line is busy'};
-            ses.login({user: 'alice', pass: 'swordfish'}, loginCallbacks);
-            expect(loginCallbacks.error).toHaveBeenCalledWith(
-                auth.checkLoginResult
-            );
         });
     });
 
@@ -411,7 +423,7 @@ describe('secure-ng-resource', function () {
             expect(auth.getAuthType()).toEqual("PasswordOAuth");
         });
 
-        it('makes valid token requests and calls handler with user', function () {
+        it('makes valid token requests and resolves promise on valid response', function () {
             $httpBackend.expectPOST(
                 'https://example.com/oauth/v2/token',
                 'client_id=my_id&client_secret=my_secret&' +
@@ -425,69 +437,44 @@ describe('secure-ng-resource', function () {
                 refresh_token: 'xyz',
                 expires_in: 3600
             });
-            auth.checkLogin(
-                {user: 'alice', pass: 'swordfish'},
-                function() {}
-            );
-            $httpBackend.flush();
-        });
 
-        it('calls handler with correct state on accepted token requests', function () {
-            var handler = jasmine.createSpy('handler');
             var now = new Date().getTime();
-            $httpBackend.when('POST', 'https://example.com/oauth/v2/token'
-            ).respond({
-                access_token: 'abc',
-                refresh_token: 'xyz',
-                expires_in: 3600
-            });
-            auth.checkLogin(
-                {user: 'alice', pass: 'swordfish'},
-                handler
-            );
+            var result = null;
+            auth.checkLogin({user: 'alice', pass: 'swordfish'})
+                .then(function(r) { result = r; });
             $httpBackend.flush();
-
-            var newState = handler.mostRecentCall.args[0].newState;
-            expect(newState.accessToken).toEqual('abc');
-            expect(newState.accessTokenExpires).toBeGreaterThan(now + 3000);
-            expect(newState.accessTokenExpires).toBeLessThan(now + 4000);
-            expect(newState.refreshToken).toEqual('xyz');
+            expect(result.status).toEqual('accepted');
+            expect(result.newState.accessToken).toEqual('abc');
+            expect(result.newState.accessTokenExpires).toBeGreaterThan(now + 3000);
+            expect(result.newState.accessTokenExpires).toBeLessThan(now + 4000);
+            expect(result.newState.refreshToken).toEqual('xyz');
         });
 
-        it('calls handler correctly on denied requests', function () {
+        it('rejects promise correctly on denied requests', function () {
             var handler = jasmine.createSpy('handler');
             $httpBackend.when('POST', 'https://example.com/oauth/v2/token').
                 respond(400, {error: 'invalid_grant'});
-            auth.checkLogin(
-                {user: 'alice', pass: 'swordfish'},
-                handler
-            );
+            auth.checkLogin({user: 'alice', pass: 'swordfish'}).then(null, handler);
             $httpBackend.flush();
             expect(handler.mostRecentCall.args[0].status).toEqual('denied');
             expect(handler.mostRecentCall.args[0].msg).toMatch(/password/i);
         });
 
-        it('calls handler correctly on HTTP failure', function () {
+        it('rejects promise correctly on HTTP failure', function () {
             var handler = jasmine.createSpy('handler');
             $httpBackend.when('POST', 'https://example.com/oauth/v2/token').
                 respond(500, "Internal Server Error, Oh Noes");
-            auth.checkLogin(
-                {user: 'alice', pass: 'swordfish'},
-                handler
-            );
+            auth.checkLogin({user: 'alice', pass: 'swordfish'}).then(null, handler);
             $httpBackend.flush();
             expect(handler.mostRecentCall.args[0].status).toEqual('error');
             expect(handler.mostRecentCall.args[0].msg).toMatch(/500/);
         });
 
-        it('calls handler correctly on OAuth failure', function () {
+        it('rejects promise correctly on OAuth failure', function () {
             var handler = jasmine.createSpy('handler');
             $httpBackend.when('POST', 'https://example.com/oauth/v2/token').
                 respond(500, {error_description: "War Were Declared"});
-            auth.checkLogin(
-                {user: 'alice', pass: 'swordfish'},
-                handler
-            );
+            auth.checkLogin({user: 'alice', pass: 'swordfish'}).then(null, handler);
             $httpBackend.flush();
             expect(handler.mostRecentCall.args[0].status).toEqual('error');
             expect(handler.mostRecentCall.args[0].msg).toMatch(/Were/);
@@ -509,10 +496,8 @@ describe('secure-ng-resource', function () {
             });
 
             var result = {};
-            auth.refreshLogin(
-                { accessToken: 'abc', refreshToken: 'xyz' },
-                function(r) { result = r; }
-            );
+            auth.refreshLogin({accessToken: 'abc', refreshToken: 'xyz'})
+                .then(function(r) { result = r; });
             $httpBackend.flush();
             expect(result.status).toEqual("accepted");
             expect(result.newState.accessToken).toEqual('abc2');
@@ -534,10 +519,8 @@ describe('secure-ng-resource', function () {
             });
 
             var result = {};
-            auth.refreshLogin(
-                { accessToken: 'abc', refreshToken: 'xyz' },
-                function(r) { result = r; }
-            );
+            auth.refreshLogin({ accessToken: 'abc', refreshToken: 'xyz' })
+                .then(function(r) { result = r; });
             $httpBackend.flush();
             expect(result.status).toEqual("accepted");
             expect(result.newState.accessToken).toEqual('abc2');
@@ -555,10 +538,7 @@ describe('secure-ng-resource', function () {
                 refresh_token: 'xyz',
                 expires_in: 3600
             });
-            auth.checkLogin(
-                {user: 'alice', pass: 'swordfish'},
-                handler
-            );
+            auth.checkLogin({user: 'alice', pass: 'swordfish'}).then(handler);
             $httpBackend.flush();
             
             var httpConf = {headers: {}};
@@ -609,7 +589,7 @@ describe('secure-ng-resource', function () {
         });
 
         it('begins OpenID requests in a popup with a dynamic form', function () {
-            auth.checkLogin({openid_identifier: 'foo'}, function() {});
+            auth.checkLogin({openid_identifier: 'foo'});
             expect(window.open).toHaveBeenCalledWith(
                 '',
                 'openid_popup',
@@ -627,39 +607,42 @@ describe('secure-ng-resource', function () {
 
         it('creates and cleans up response handler', function () {
             expect(window.handleAuthResponse).toBeUndefined();
-            auth.checkLogin({openid_identifier: 'foo'}, function() {});
+            auth.checkLogin({openid_identifier: 'foo'});
             expect(typeof window.handleAuthResponse).toBe('function');
             window.handleAuthResponse('abc=123');
             expect(window.handleAuthResponse).toBeUndefined();
         });
 
-        it('calls handler correctly on approved logins', function () {
+        it('resolves promise correctly on approved logins', function () {
             var handler = jasmine.createSpy('handler');
-            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            auth.checkLogin({openid_identifier: 'foo'}).then(handler);
             var d = {approved: true, user: 'bob', sessionId: 'xyz'};
             window.handleAuthResponse(d);
+            $scope.$apply();
             expect(handler).toHaveBeenCalledWith({
                 status: 'accepted',
                 newState: { sessionId: 'xyz' }
             })
         });
 
-        it('calls handler correctly on denied logins', function () {
+        it('rejects promise correctly on denied logins', function () {
             var handler = jasmine.createSpy('handler');
-            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            auth.checkLogin({openid_identifier: 'foo'}).then(null, handler);
             var d = {approved: false, message: 'Foo'};
             window.handleAuthResponse(d);
+            $scope.$apply();
             expect(handler).toHaveBeenCalledWith({
                 status: 'denied',
                 msg: 'Foo'
             })
         });
 
-        it('calls handler with default message on denied logins', function () {
+        it('rejects promise with default message on denied logins', function () {
             var handler = jasmine.createSpy('handler');
-            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            auth.checkLogin({openid_identifier: 'foo'}).then(null, handler);
             var d = {approved: false};
             window.handleAuthResponse(d);
+            $scope.$apply();
             expect(handler).toHaveBeenCalledWith({
                 status: 'denied',
                 msg: 'Access denied'
@@ -672,11 +655,12 @@ describe('secure-ng-resource', function () {
         /*
         it('calls handler correctly on HTTP failure', function () {
             var handler = jasmine.createSpy('handler');
-            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            auth.checkLogin({openid_identifier: 'foo'}).then(null, handler);
             $httpBackend.when('GET', 'https://example.com/openid_finish?abc=123').
                 respond(500, "Internal Server Error, Oh Noes");
             window.handleAuthResponse('abc=123');
             $httpBackend.flush();
+            $scope.$apply();
             expect(handler.mostRecentCall.args[0].status).toEqual('error');
             expect(handler.mostRecentCall.args[0].msg).toMatch(/500/);
         });
@@ -687,9 +671,10 @@ describe('secure-ng-resource', function () {
             var handler = function(result) {
                 state = result.newState;
             };
-            auth.checkLogin({openid_identifier: 'foo'}, handler);
+            auth.checkLogin({openid_identifier: 'foo'}).then(handler);
             var d = {approved: true, user: 'bob', sessionId: 'xyz'};
             window.handleAuthResponse(d);
+            $scope.$apply();
 
             var httpConf = {headers: {}};
             auth.addAuthToRequestConf(httpConf, state);

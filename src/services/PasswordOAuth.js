@@ -2,8 +2,8 @@
 
 angular.module('secureNgResource')
 .factory('passwordOAuth', [
-'$http',
-function($http) {
+'$http', '$q',
+function($http, $q) {
     var PasswordOAuth = function (host, clientId, clientSecret) {
         this.host = host;
         this.clientId = clientId;
@@ -19,13 +19,13 @@ function($http) {
         return s;
     };
     
-    var handleTokenResponse = function (handler, response) {
+    var handleTokenResponse = function (response) {
         if (
         response.status === 200 &&
         angular.isString(response.data['access_token'])
         ) {
             var d = response.data;
-            handler({
+            return {
                 status: 'accepted',
                 newState: {
                     accessToken: d['access_token'],
@@ -35,15 +35,15 @@ function($http) {
                         d['expires_in']*1000/2, // Refresh at halfway point
                     refreshToken: d['refresh_token']
                 }
-            });
+            };
         } else if (
         response.status === 400 &&
         response.data.error === 'invalid_grant'
         ) {
-            handler({
+            return {
                 status: 'denied',
                 msg: 'Invalid username or password'
-            });
+            };
         } else {
             var msg = 'HTTP Status ' + response.status;
             if (response.status === 0) {
@@ -51,10 +51,10 @@ function($http) {
             } else if (response.data['error_description']) {
                 msg = 'OAuth:' + response.data['error_description'];
             }
-            handler({
+            return {
                 status: 'error',
                 msg: msg
-            });
+            };
         }
     };
 
@@ -63,7 +63,8 @@ function($http) {
             return 'PasswordOAuth';
         },
 
-        checkLogin: function (credentials, handler) {
+        checkLogin: function (credentials) {
+            var deferred = $q.defer();
             $http({
                 method: 'POST',
                 url: this.host + '/oauth/v2/token',
@@ -76,13 +77,20 @@ function($http) {
                     'password': credentials.pass
                 })
             }).then(function (response) {
-                handleTokenResponse(handler, response);
+                var r = handleTokenResponse(response);
+                if (r.status === 'accepted') {
+                    deferred.resolve(r);
+                } else {
+                    deferred.reject(r);
+                }
             });
+            return deferred.promise;
         },
 
         cancelLogin: function () {}, // TODO Cancel any current HTTP request
 
-        refreshLogin: function(state, handler) {
+        refreshLogin: function(state) {
+            var deferred = $q.defer();
             $http({
                 method: 'POST',
                 url: this.host + '/oauth/v2/token',
@@ -94,15 +102,20 @@ function($http) {
                     'refresh_token': state.refreshToken
                 })
             }).then(function (response) {
-                if ('data' in response && !('refresh_token' in response.data)) {
-                    response.data['refresh_token'] = state.refreshToken;
+                var r = handleTokenResponse(response);
+                if (r.status === 'accepted') {
+                    if (!r.newState.refreshToken) {
+                        r.newState.refreshToken = state.refreshToken;
+                    }
+                    deferred.resolve(r);
+                } else {
+                    deferred.reject(r);
                 }
-                handleTokenResponse(handler, response);
             });
+            return deferred.promise;
         },
 
         checkResponse: function (response) {
-            // TODO: If our access_token is getting stale, then get a new one,
             // and have the session update the request configs
             var authResult = {};
             if (response.status === 401) {

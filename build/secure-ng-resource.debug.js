@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/27/2013 14:57
+* Compiled At: 06/27/2013 16:53
 ***********************************************/
 (function(window) {
 'use strict';
@@ -60,29 +60,19 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             return this.state !== null;
         },
 
-        login: function (credentials, callbacks) {
+        login: function (credentials) {
             var me = this;
-            this.auth.checkLogin(credentials, function(result) {
-                if (result.status === 'accepted') {
-                    me.state = result.newState;
-                    // FIXME This is silly
-                    if (!('user' in me.state)) {
-                        me.state.user = credentials.user;
-                    }
-                    me._onStateChange();
-
-                    var tgt = me.settings.defaultPostLoginPath;
-                    if (me.priorPath !== null) { tgt = me.priorPath; }
-                    $location.path(tgt).replace();
+            return this.auth.checkLogin(credentials).then(function(result) {
+                me.state = result.newState;
+                // FIXME This is silly
+                if (me.state !== null && !('user' in me.state)) {
+                    me.state.user = credentials.user;
                 }
+                me._onStateChange();
 
-                if (angular.isObject(callbacks) && callbacks[result.status]) {
-                    callbacks[result.status](result);
-                }
-
-                if (!$rootScope.$$phase) {
-                    $rootScope.$digest();
-                }
+                var tgt = me.settings.defaultPostLoginPath;
+                if (me.priorPath !== null) { tgt = me.priorPath; }
+                $location.path(tgt).replace();
             });
         },
 
@@ -95,39 +85,38 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
                 throw 'Cannot refresh, not logged in.';
             }
             
+            // FIXME Do something about failure, maybe retry soonish
             var me = this;
-            this.auth.refreshLogin(this.state, function(result) {
-                if (result.status === 'accepted') {
-                    var origUser = me.state.user;
-                    me.state = result.newState;
-                    // FIXME This is silly
-                    if (!('user' in me.state)) {
-                        me.state.user = origUser;
-                    }
-                    me._onStateChange();
-                } else {
-                    // FIXME Do something about this, maybe retry soonish
+            return this.auth.refreshLogin(this.state).then(function(result) {
+                var origUser = me.state.user;
+                me.state = result.newState;
+                // FIXME This is silly
+                if (me.state !== null && !('user' in me.state)) {
+                    me.state.user = origUser;
                 }
+                me._onStateChange();
             });
         },
 
         logout: function () {
-            if (this.loggedIn()) {
-                if (this.settings.logoutUrl !== null) {
-                    // FIXME Can't depend on $http directly, causes a false
-                    // alarm for circular dependency :-(
-                    var http = $injector.get('$http');
-                    var httpConf = {
-                        method: 'POST',
-                        data: '',
-                        url: this.settings.logoutUrl
-                    };
-                    this.updateRequestConf(httpConf);
-                    http(httpConf);
-                }
-                this.reset();
-                $location.path(this.settings.loginPath);
+            if (!this.loggedIn()) {
+                return;
             }
+
+            if (this.settings.logoutUrl !== null) {
+                // FIXME Can't depend on $http directly, causes a false
+                // alarm for circular dependency :-(
+                var http = $injector.get('$http');
+                var httpConf = {
+                    method: 'POST',
+                    data: '',
+                    url: this.settings.logoutUrl
+                };
+                this.updateRequestConf(httpConf);
+                http(httpConf);
+            }
+            this.reset();
+            $location.path(this.settings.loginPath);
         },
 
         reset: function () {
@@ -218,7 +207,8 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
 
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-function() {
+'$q',
+function($q) {
     var OpenIDAuth = function (host, beginPath) {
         this.host = host;
         this.beginPath = beginPath;
@@ -229,20 +219,22 @@ function() {
             return 'OpenIDAuth';
         },
 
-        checkLogin: function (credentials, handler) {
+        checkLogin: function (credentials) {
+            var deferred = $q.defer();
+
             window.handleAuthResponse = function(d) {
                 delete window.handleAuthResponse;
                 delete window.openIdPopup;
 
                 if (d.approved) {
-                    handler({
+                    deferred.resolve({
                         status: 'accepted',
                         newState: {
                             sessionId: d.sessionId
                         }
                     });
                 } else {
-                    handler({
+                    deferred.reject({
                         status: 'denied',
                         msg: d.message || 'Access denied'
                     });
@@ -269,6 +261,8 @@ function() {
             popup.document.getElementById('oid').value = oid;
             popup.document.getElementById('shimform').submit();
             window.openIdPopup = popup;
+
+            return deferred.promise;
         },
 
         cancelLogin: function() {
@@ -280,9 +274,12 @@ function() {
             }
         },
 
-        refreshLogin: function(/*handler*/) {
-            // Do nothing
-            // TODO Do a no-op request just to keep session fresh?
+        refreshLogin: function(/*state*/) {
+            // Maybe should do a no-op http request to keep session fresh?
+            var deferred = $q.defer();
+            var p = deferred.promise;
+            deferred.reject();
+            return p;
         },
 
         checkResponse: function (response) {
@@ -308,8 +305,8 @@ function() {
 
 angular.module('secureNgResource')
 .factory('passwordOAuth', [
-'$http',
-function($http) {
+'$http', '$q',
+function($http, $q) {
     var PasswordOAuth = function (host, clientId, clientSecret) {
         this.host = host;
         this.clientId = clientId;
@@ -325,13 +322,13 @@ function($http) {
         return s;
     };
     
-    var handleTokenResponse = function (handler, response) {
+    var handleTokenResponse = function (response) {
         if (
         response.status === 200 &&
         angular.isString(response.data['access_token'])
         ) {
             var d = response.data;
-            handler({
+            return {
                 status: 'accepted',
                 newState: {
                     accessToken: d['access_token'],
@@ -341,15 +338,15 @@ function($http) {
                         d['expires_in']*1000/2, // Refresh at halfway point
                     refreshToken: d['refresh_token']
                 }
-            });
+            };
         } else if (
         response.status === 400 &&
         response.data.error === 'invalid_grant'
         ) {
-            handler({
+            return {
                 status: 'denied',
                 msg: 'Invalid username or password'
-            });
+            };
         } else {
             var msg = 'HTTP Status ' + response.status;
             if (response.status === 0) {
@@ -357,10 +354,10 @@ function($http) {
             } else if (response.data['error_description']) {
                 msg = 'OAuth:' + response.data['error_description'];
             }
-            handler({
+            return {
                 status: 'error',
                 msg: msg
-            });
+            };
         }
     };
 
@@ -369,7 +366,8 @@ function($http) {
             return 'PasswordOAuth';
         },
 
-        checkLogin: function (credentials, handler) {
+        checkLogin: function (credentials) {
+            var deferred = $q.defer();
             $http({
                 method: 'POST',
                 url: this.host + '/oauth/v2/token',
@@ -382,13 +380,20 @@ function($http) {
                     'password': credentials.pass
                 })
             }).then(function (response) {
-                handleTokenResponse(handler, response);
+                var r = handleTokenResponse(response);
+                if (r.status === 'accepted') {
+                    deferred.resolve(r);
+                } else {
+                    deferred.reject(r);
+                }
             });
+            return deferred.promise;
         },
 
         cancelLogin: function () {}, // TODO Cancel any current HTTP request
 
-        refreshLogin: function(state, handler) {
+        refreshLogin: function(state) {
+            var deferred = $q.defer();
             $http({
                 method: 'POST',
                 url: this.host + '/oauth/v2/token',
@@ -400,15 +405,20 @@ function($http) {
                     'refresh_token': state.refreshToken
                 })
             }).then(function (response) {
-                if ('data' in response && !('refresh_token' in response.data)) {
-                    response.data['refresh_token'] = state.refreshToken;
+                var r = handleTokenResponse(response);
+                if (r.status === 'accepted') {
+                    if (!r.newState.refreshToken) {
+                        r.newState.refreshToken = state.refreshToken;
+                    }
+                    deferred.resolve(r);
+                } else {
+                    deferred.reject(r);
                 }
-                handleTokenResponse(handler, response);
             });
+            return deferred.promise;
         },
 
         checkResponse: function (response) {
-            // TODO: If our access_token is getting stale, then get a new one,
             // and have the session update the request configs
             var authResult = {};
             if (response.status === 401) {

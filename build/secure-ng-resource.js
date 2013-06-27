@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/10/2013 14:03
+* Compiled At: 06/27/2013 17:02
 ***********************************************/
 (function(window) {
 'use strict';
@@ -15,8 +15,8 @@ angular.module('secureNgResource', [
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$cookieStore', '$injector', '$rootScope',
-function($q, $location, $cookieStore, $injector, $rootScope) {
+'$q', '$location', '$cookieStore', '$injector', '$rootScope', '$timeout',
+function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
@@ -37,6 +37,7 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
         this.priorPath = null;
         this.state = null;
         this.managedHttpConfs = [];
+        this.refreshPromise = null;
 
         sessionDictionary[this.cookieKey()] = this;
         var cookie = $cookieStore.get(this.cookieKey());
@@ -56,54 +57,58 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
         loggedIn: function () {return this.state !== null;
         },
 
-        login: function (credentials, callbacks) {
+        login: function (credentials) {
             var me = this;
-            var handler = function(result) {
-                if (angular.isObject(callbacks) && callbacks[result.status]) {
-                    callbacks[result.status](result);
+            return this.auth.checkLogin(credentials).then(function(result) {
+                me.state = result.newState;if (me.state !== null && !('user' in me.state)) {
+                    me.state.user = credentials.user;
                 }
+                me._onStateChange();
 
-                if (result.status === 'accepted') {
-                    me.state = result.newState;
-                    me.reupdateManagedRequestConfs();
-                    $cookieStore.put(me.cookieKey(), me.state);
-                    var tgt = me.settings.defaultPostLoginPath;
-                    if (me.priorPath !== null) { tgt = me.priorPath; }
-                    $location.path(tgt).replace();
-                }
-
-                if (!$rootScope.$$phase) {
-                    $rootScope.$digest();
-                }
-            };
-
-            this.auth.checkLogin(credentials, handler);
+                var tgt = me.settings.defaultPostLoginPath;
+                if (me.priorPath !== null) { tgt = me.priorPath; }
+                $location.path(tgt).replace();
+            });
         },
 
         cancelLogin: function () {
             this.auth.cancelLogin();
         },
 
-        logout: function () {
-            if (this.loggedIn()) {
-                if (this.settings.logoutUrl !== null) {var http = $injector.get('$http');
-                    var httpConf = {
-                        method: 'POST',
-                        data: '',
-                        url: this.settings.logoutUrl
-                    };
-                    this.updateRequestConf(httpConf);
-                    http(httpConf);
+        refreshLogin: function () {
+            if (!this.loggedIn()) {
+                throw 'Cannot refresh, not logged in.';
+            }var me = this;
+            return this.auth.refreshLogin(this.state).then(function(result) {
+                var origUser = me.state.user;
+                me.state = result.newState;if (me.state !== null && !('user' in me.state)) {
+                    me.state.user = origUser;
                 }
-                this.reset();
-                $location.path(this.settings.loginPath);
+                me._onStateChange();
+            });
+        },
+
+        logout: function () {
+            if (!this.loggedIn()) {
+                return;
             }
+
+            if (this.settings.logoutUrl !== null) {var http = $injector.get('$http');
+                var httpConf = {
+                    method: 'POST',
+                    data: '',
+                    url: this.settings.logoutUrl
+                };
+                this.updateRequestConf(httpConf);
+                http(httpConf);
+            }
+            this.reset();
+            $location.path(this.settings.loginPath);
         },
 
         reset: function () {
             this.state = null;
-            this.reupdateManagedRequestConfs();
-            $cookieStore.remove(this.cookieKey());
+            this._onStateChange();
         },
 
         cookieKey: function () {
@@ -146,6 +151,30 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
             } else {
                 return response;
             }
+        },
+
+        _onStateChange: function() {
+            this.reupdateManagedRequestConfs();
+
+            if (this.state !== null) {
+                $cookieStore.put(this.cookieKey(), this.state);
+                if (this.refreshPromise !== null) {
+                    $timeout.cancel(this.refreshPromise);
+                }
+                if ('millisecondsToRefresh' in this.state) {
+                    var me = this;
+                    this.refreshPromise = $timeout(
+                        function() { me.refreshLogin(); },
+                        this.state.millisecondsToRefresh
+                    );
+                }
+            } else {
+                if (this.refreshPromise !== null) {
+                    $timeout.cancel(this.refreshPromise);
+                    this.refreshPromise = null;
+                }
+                $cookieStore.remove(this.cookieKey());
+            }
         }
     };
 
@@ -158,7 +187,8 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
 
 'use strict';angular.module('secureNgResource')
 .factory('openIDAuth', [
-function() {
+'$q',
+function($q) {
     var OpenIDAuth = function (host, beginPath) {
         this.host = host;
         this.beginPath = beginPath;
@@ -169,21 +199,22 @@ function() {
             return 'OpenIDAuth';
         },
 
-        checkLogin: function (credentials, handler) {
+        checkLogin: function (credentials) {
+            var deferred = $q.defer();
+
             window.handleAuthResponse = function(d) {
                 delete window.handleAuthResponse;
                 delete window.openIdPopup;
 
                 if (d.approved) {
-                    handler({
+                    deferred.resolve({
                         status: 'accepted',
                         newState: {
-                            user: d.user,
                             sessionId: d.sessionId
                         }
                     });
                 } else {
-                    handler({
+                    deferred.reject({
                         status: 'denied',
                         msg: d.message || 'Access denied'
                     });
@@ -210,6 +241,8 @@ function() {
             popup.document.getElementById('oid').value = oid;
             popup.document.getElementById('shimform').submit();
             window.openIdPopup = popup;
+
+            return deferred.promise;
         },
 
         cancelLogin: function() {
@@ -219,6 +252,12 @@ function() {
                 delete window.openIdPopup;
                 delete window.handleAuthResponse;
             }
+        },
+
+        refreshLogin: function() {var deferred = $q.defer();
+            var p = deferred.promise;
+            deferred.reject();
+            return p;
         },
 
         checkResponse: function (response) {
@@ -244,8 +283,8 @@ function() {
 
 angular.module('secureNgResource')
 .factory('passwordOAuth', [
-'$http',
-function($http) {
+'$http', '$q',
+function($http, $q) {
     var PasswordOAuth = function (host, clientId, clientSecret) {
         this.host = host;
         this.clientId = clientId;
@@ -260,13 +299,51 @@ function($http) {
         });
         return s;
     };
+    var handleTokenResponse = function (response) {
+        if (
+        response.status === 200 &&
+        angular.isString(response.data['access_token'])
+        ) {
+            var d = response.data;
+            return {
+                status: 'accepted',
+                newState: {
+                    accessToken: d['access_token'],
+                    accessTokenExpires:
+                        new Date().getTime() + d['expires_in'],
+                    millisecondsToRefresh:
+                        d['expires_in']*1000/2,refreshToken: d['refresh_token']
+                }
+            };
+        } else if (
+        response.status === 400 &&
+        response.data.error === 'invalid_grant'
+        ) {
+            return {
+                status: 'denied',
+                msg: 'Invalid username or password'
+            };
+        } else {
+            var msg = 'HTTP Status ' + response.status;
+            if (response.status === 0) {
+                msg = 'Unable to connect to authentication server';
+            } else if (response.data['error_description']) {
+                msg = 'OAuth:' + response.data['error_description'];
+            }
+            return {
+                status: 'error',
+                msg: msg
+            };
+        }
+    };
 
     PasswordOAuth.prototype = {
         getAuthType: function () {
             return 'PasswordOAuth';
         },
 
-        checkLogin: function (credentials, handler) {
+        checkLogin: function (credentials) {
+            var deferred = $q.defer();
             $http({
                 method: 'POST',
                 url: this.host + '/oauth/v2/token',
@@ -278,46 +355,44 @@ function($http) {
                     'username': credentials.user,
                     'password': credentials.pass
                 })
-            }).then(function(response) {
-                if (
-                response.status === 200 &&
-                angular.isString(response.data['access_token'])
-                ) {
-                    var d = response.data;
-                    handler({
-                        status: 'accepted',
-                        newState: {
-                            user: credentials.user,
-                            accessToken: d['access_token'],
-                            accessTokenExpires:
-                                new Date().getTime() + d['expires_in'],
-                            refreshToken: d['refresh_token']
-                        }
-                    });
-                } else if (
-                response.status === 400 &&
-                response.data.error === 'invalid_grant'
-                ) {
-                    handler({
-                        status: 'denied',
-                        msg: 'Invalid username or password'
-                    });
+            }).then(function (response) {
+                var r = handleTokenResponse(response);
+                if (r.status === 'accepted') {
+                    deferred.resolve(r);
                 } else {
-                    var msg = 'HTTP Status ' + response.status;
-                    if (response.status === 0) {
-                        msg = 'Unable to connect to authentication server';
-                    } else if (response.data['error_description']) {
-                        msg = 'OAuth:' + response.data['error_description'];
-                    }
-                    handler({
-                        status: 'error',
-                        msg: msg
-                    });
+                    deferred.reject(r);
                 }
             });
+            return deferred.promise;
         },
 
-        cancelLogin: function () {},checkResponse: function (response) {var authResult = {};
+        cancelLogin: function () {},refreshLogin: function(state) {
+            var deferred = $q.defer();
+            $http({
+                method: 'POST',
+                url: this.host + '/oauth/v2/token',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                data: encodeURIForm({
+                    'client_id': this.clientId,
+                    'client_secret': this.clientSecret,
+                    'grant_type': 'refresh_token',
+                    'refresh_token': state.refreshToken
+                })
+            }).then(function (response) {
+                var r = handleTokenResponse(response);
+                if (r.status === 'accepted') {
+                    if (!r.newState.refreshToken) {
+                        r.newState.refreshToken = state.refreshToken;
+                    }
+                    deferred.resolve(r);
+                } else {
+                    deferred.reject(r);
+                }
+            });
+            return deferred.promise;
+        },
+
+        checkResponse: function (response) {var authResult = {};
             if (response.status === 401) {
                 authResult.authFailure = true;
             }

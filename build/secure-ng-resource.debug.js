@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/davidmikesimon/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/10/2013 14:03
+* Compiled At: 06/27/2013 14:57
 ***********************************************/
 (function(window) {
 'use strict';
@@ -15,8 +15,8 @@ angular.module('secureNgResource', [
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$cookieStore', '$injector', '$rootScope',
-function($q, $location, $cookieStore, $injector, $rootScope) {
+'$q', '$location', '$cookieStore', '$injector', '$rootScope', '$timeout',
+function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
@@ -37,6 +37,7 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
         this.priorPath = null;
         this.state = null;
         this.managedHttpConfs = [];
+        this.refreshPromise = null;
 
         sessionDictionary[this.cookieKey()] = this;
         var cookie = $cookieStore.get(this.cookieKey());
@@ -61,30 +62,53 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
 
         login: function (credentials, callbacks) {
             var me = this;
-            var handler = function(result) {
-                if (angular.isObject(callbacks) && callbacks[result.status]) {
-                    callbacks[result.status](result);
-                }
-
+            this.auth.checkLogin(credentials, function(result) {
                 if (result.status === 'accepted') {
                     me.state = result.newState;
-                    me.reupdateManagedRequestConfs();
-                    $cookieStore.put(me.cookieKey(), me.state);
+                    // FIXME This is silly
+                    if (!('user' in me.state)) {
+                        me.state.user = credentials.user;
+                    }
+                    me._onStateChange();
+
                     var tgt = me.settings.defaultPostLoginPath;
                     if (me.priorPath !== null) { tgt = me.priorPath; }
                     $location.path(tgt).replace();
                 }
 
+                if (angular.isObject(callbacks) && callbacks[result.status]) {
+                    callbacks[result.status](result);
+                }
+
                 if (!$rootScope.$$phase) {
                     $rootScope.$digest();
                 }
-            };
-
-            this.auth.checkLogin(credentials, handler);
+            });
         },
 
         cancelLogin: function () {
             this.auth.cancelLogin();
+        },
+
+        refreshLogin: function () {
+            if (!this.loggedIn()) {
+                throw 'Cannot refresh, not logged in.';
+            }
+            
+            var me = this;
+            this.auth.refreshLogin(this.state, function(result) {
+                if (result.status === 'accepted') {
+                    var origUser = me.state.user;
+                    me.state = result.newState;
+                    // FIXME This is silly
+                    if (!('user' in me.state)) {
+                        me.state.user = origUser;
+                    }
+                    me._onStateChange();
+                } else {
+                    // FIXME Do something about this, maybe retry soonish
+                }
+            });
         },
 
         logout: function () {
@@ -108,8 +132,7 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
 
         reset: function () {
             this.state = null;
-            this.reupdateManagedRequestConfs();
-            $cookieStore.remove(this.cookieKey());
+            this._onStateChange();
         },
 
         cookieKey: function () {
@@ -152,6 +175,30 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
             } else {
                 return response;
             }
+        },
+
+        _onStateChange: function() {
+            this.reupdateManagedRequestConfs();
+
+            if (this.state !== null) {
+                $cookieStore.put(this.cookieKey(), this.state);
+                if (this.refreshPromise !== null) {
+                    $timeout.cancel(this.refreshPromise);
+                }
+                if ('millisecondsToRefresh' in this.state) {
+                    var me = this;
+                    this.refreshPromise = $timeout(
+                        function() { me.refreshLogin(); },
+                        this.state.millisecondsToRefresh
+                    );
+                }
+            } else {
+                if (this.refreshPromise !== null) {
+                    $timeout.cancel(this.refreshPromise);
+                    this.refreshPromise = null;
+                }
+                $cookieStore.remove(this.cookieKey());
+            }
         }
     };
 
@@ -191,7 +238,6 @@ function() {
                     handler({
                         status: 'accepted',
                         newState: {
-                            user: d.user,
                             sessionId: d.sessionId
                         }
                     });
@@ -234,6 +280,11 @@ function() {
             }
         },
 
+        refreshLogin: function(/*handler*/) {
+            // Do nothing
+            // TODO Do a no-op request just to keep session fresh?
+        },
+
         checkResponse: function (response) {
             var authResult = {};
             if (response.status === 401 || response.status === 403) {
@@ -273,6 +324,45 @@ function($http) {
         });
         return s;
     };
+    
+    var handleTokenResponse = function (handler, response) {
+        if (
+        response.status === 200 &&
+        angular.isString(response.data['access_token'])
+        ) {
+            var d = response.data;
+            handler({
+                status: 'accepted',
+                newState: {
+                    accessToken: d['access_token'],
+                    accessTokenExpires:
+                        new Date().getTime() + d['expires_in'],
+                    millisecondsToRefresh:
+                        d['expires_in']*1000/2, // Refresh at halfway point
+                    refreshToken: d['refresh_token']
+                }
+            });
+        } else if (
+        response.status === 400 &&
+        response.data.error === 'invalid_grant'
+        ) {
+            handler({
+                status: 'denied',
+                msg: 'Invalid username or password'
+            });
+        } else {
+            var msg = 'HTTP Status ' + response.status;
+            if (response.status === 0) {
+                msg = 'Unable to connect to authentication server';
+            } else if (response.data['error_description']) {
+                msg = 'OAuth:' + response.data['error_description'];
+            }
+            handler({
+                status: 'error',
+                msg: msg
+            });
+        }
+    };
 
     PasswordOAuth.prototype = {
         getAuthType: function () {
@@ -291,46 +381,31 @@ function($http) {
                     'username': credentials.user,
                     'password': credentials.pass
                 })
-            }).then(function(response) {
-                if (
-                response.status === 200 &&
-                angular.isString(response.data['access_token'])
-                ) {
-                    var d = response.data;
-                    handler({
-                        status: 'accepted',
-                        newState: {
-                            user: credentials.user,
-                            accessToken: d['access_token'],
-                            accessTokenExpires:
-                                new Date().getTime() + d['expires_in'],
-                            refreshToken: d['refresh_token']
-                        }
-                    });
-                } else if (
-                response.status === 400 &&
-                response.data.error === 'invalid_grant'
-                ) {
-                    handler({
-                        status: 'denied',
-                        msg: 'Invalid username or password'
-                    });
-                } else {
-                    var msg = 'HTTP Status ' + response.status;
-                    if (response.status === 0) {
-                        msg = 'Unable to connect to authentication server';
-                    } else if (response.data['error_description']) {
-                        msg = 'OAuth:' + response.data['error_description'];
-                    }
-                    handler({
-                        status: 'error',
-                        msg: msg
-                    });
-                }
+            }).then(function (response) {
+                handleTokenResponse(handler, response);
             });
         },
 
         cancelLogin: function () {}, // TODO Cancel any current HTTP request
+
+        refreshLogin: function(state, handler) {
+            $http({
+                method: 'POST',
+                url: this.host + '/oauth/v2/token',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                data: encodeURIForm({
+                    'client_id': this.clientId,
+                    'client_secret': this.clientSecret,
+                    'grant_type': 'refresh_token',
+                    'refresh_token': state.refreshToken
+                })
+            }).then(function (response) {
+                if ('data' in response && !('refresh_token' in response.data)) {
+                    response.data['refresh_token'] = state.refreshToken;
+                }
+                handleTokenResponse(handler, response);
+            });
+        },
 
         checkResponse: function (response) {
             // TODO: If our access_token is getting stale, then get a new one,

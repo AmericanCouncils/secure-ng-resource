@@ -2,8 +2,8 @@
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$cookieStore', '$injector', '$rootScope',
-function($q, $location, $cookieStore, $injector, $rootScope) {
+'$q', '$location', '$cookieStore', '$injector', '$rootScope', '$timeout',
+function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
@@ -24,6 +24,7 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
         this.priorPath = null;
         this.state = null;
         this.managedHttpConfs = [];
+        this.refreshPromise = null;
 
         sessionDictionary[this.cookieKey()] = this;
         var cookie = $cookieStore.get(this.cookieKey());
@@ -48,30 +49,53 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
 
         login: function (credentials, callbacks) {
             var me = this;
-            var handler = function(result) {
-                if (angular.isObject(callbacks) && callbacks[result.status]) {
-                    callbacks[result.status](result);
-                }
-
+            this.auth.checkLogin(credentials, function(result) {
                 if (result.status === 'accepted') {
                     me.state = result.newState;
-                    me.reupdateManagedRequestConfs();
-                    $cookieStore.put(me.cookieKey(), me.state);
+                    // FIXME This is silly
+                    if (!('user' in me.state)) {
+                        me.state.user = credentials.user;
+                    }
+                    me._onStateChange();
+
                     var tgt = me.settings.defaultPostLoginPath;
                     if (me.priorPath !== null) { tgt = me.priorPath; }
                     $location.path(tgt).replace();
                 }
 
+                if (angular.isObject(callbacks) && callbacks[result.status]) {
+                    callbacks[result.status](result);
+                }
+
                 if (!$rootScope.$$phase) {
                     $rootScope.$digest();
                 }
-            };
-
-            this.auth.checkLogin(credentials, handler);
+            });
         },
 
         cancelLogin: function () {
             this.auth.cancelLogin();
+        },
+
+        refreshLogin: function () {
+            if (!this.loggedIn()) {
+                throw 'Cannot refresh, not logged in.';
+            }
+            
+            var me = this;
+            this.auth.refreshLogin(this.state, function(result) {
+                if (result.status === 'accepted') {
+                    var origUser = me.state.user;
+                    me.state = result.newState;
+                    // FIXME This is silly
+                    if (!('user' in me.state)) {
+                        me.state.user = origUser;
+                    }
+                    me._onStateChange();
+                } else {
+                    // FIXME Do something about this, maybe retry soonish
+                }
+            });
         },
 
         logout: function () {
@@ -95,8 +119,7 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
 
         reset: function () {
             this.state = null;
-            this.reupdateManagedRequestConfs();
-            $cookieStore.remove(this.cookieKey());
+            this._onStateChange();
         },
 
         cookieKey: function () {
@@ -138,6 +161,30 @@ function($q, $location, $cookieStore, $injector, $rootScope) {
                 return $q.reject(response);
             } else {
                 return response;
+            }
+        },
+
+        _onStateChange: function() {
+            this.reupdateManagedRequestConfs();
+
+            if (this.state !== null) {
+                $cookieStore.put(this.cookieKey(), this.state);
+                if (this.refreshPromise !== null) {
+                    $timeout.cancel(this.refreshPromise);
+                }
+                if ('millisecondsToRefresh' in this.state) {
+                    var me = this;
+                    this.refreshPromise = $timeout(
+                        function() { me.refreshLogin(); },
+                        this.state.millisecondsToRefresh
+                    );
+                }
+            } else {
+                if (this.refreshPromise !== null) {
+                    $timeout.cancel(this.refreshPromise);
+                    this.refreshPromise = null;
+                }
+                $cookieStore.remove(this.cookieKey());
             }
         }
     };

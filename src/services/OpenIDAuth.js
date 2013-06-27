@@ -27,7 +27,6 @@ function() {
                     handler({
                         status: 'accepted',
                         newState: {
-                            user: d.user,
                             sessionId: d.sessionId
                         }
                     });
@@ -68,6 +67,11 @@ function() {
                 delete window.openIdPopup;
                 delete window.handleAuthResponse;
             }
+        },
+
+        refreshLogin: function(/*handler*/) {
+            // Do nothing
+            // TODO Do a no-op request just to keep session fresh?
         },
 
         checkResponse: function (response) {

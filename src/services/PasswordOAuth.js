@@ -18,6 +18,45 @@ function($http) {
         });
         return s;
     };
+    
+    var handleTokenResponse = function (handler, response) {
+        if (
+        response.status === 200 &&
+        angular.isString(response.data['access_token'])
+        ) {
+            var d = response.data;
+            handler({
+                status: 'accepted',
+                newState: {
+                    accessToken: d['access_token'],
+                    accessTokenExpires:
+                        new Date().getTime() + d['expires_in'],
+                    millisecondsToRefresh:
+                        d['expires_in']*1000/2, // Refresh at halfway point
+                    refreshToken: d['refresh_token']
+                }
+            });
+        } else if (
+        response.status === 400 &&
+        response.data.error === 'invalid_grant'
+        ) {
+            handler({
+                status: 'denied',
+                msg: 'Invalid username or password'
+            });
+        } else {
+            var msg = 'HTTP Status ' + response.status;
+            if (response.status === 0) {
+                msg = 'Unable to connect to authentication server';
+            } else if (response.data['error_description']) {
+                msg = 'OAuth:' + response.data['error_description'];
+            }
+            handler({
+                status: 'error',
+                msg: msg
+            });
+        }
+    };
 
     PasswordOAuth.prototype = {
         getAuthType: function () {
@@ -36,46 +75,31 @@ function($http) {
                     'username': credentials.user,
                     'password': credentials.pass
                 })
-            }).then(function(response) {
-                if (
-                response.status === 200 &&
-                angular.isString(response.data['access_token'])
-                ) {
-                    var d = response.data;
-                    handler({
-                        status: 'accepted',
-                        newState: {
-                            user: credentials.user,
-                            accessToken: d['access_token'],
-                            accessTokenExpires:
-                                new Date().getTime() + d['expires_in'],
-                            refreshToken: d['refresh_token']
-                        }
-                    });
-                } else if (
-                response.status === 400 &&
-                response.data.error === 'invalid_grant'
-                ) {
-                    handler({
-                        status: 'denied',
-                        msg: 'Invalid username or password'
-                    });
-                } else {
-                    var msg = 'HTTP Status ' + response.status;
-                    if (response.status === 0) {
-                        msg = 'Unable to connect to authentication server';
-                    } else if (response.data['error_description']) {
-                        msg = 'OAuth:' + response.data['error_description'];
-                    }
-                    handler({
-                        status: 'error',
-                        msg: msg
-                    });
-                }
+            }).then(function (response) {
+                handleTokenResponse(handler, response);
             });
         },
 
         cancelLogin: function () {}, // TODO Cancel any current HTTP request
+
+        refreshLogin: function(state, handler) {
+            $http({
+                method: 'POST',
+                url: this.host + '/oauth/v2/token',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                data: encodeURIForm({
+                    'client_id': this.clientId,
+                    'client_secret': this.clientSecret,
+                    'grant_type': 'refresh_token',
+                    'refresh_token': state.refreshToken
+                })
+            }).then(function (response) {
+                if ('data' in response && !('refresh_token' in response.data)) {
+                    response.data['refresh_token'] = state.refreshToken;
+                }
+                handleTokenResponse(handler, response);
+            });
+        },
 
         checkResponse: function (response) {
             // TODO: If our access_token is getting stale, then get a new one,

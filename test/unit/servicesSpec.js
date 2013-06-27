@@ -153,8 +153,8 @@ describe('secure-ng-resource', function () {
     });
 
     describe('AuthSession', function () {
-        var sessionFactory, ses, auth, loc;
-        beforeEach(inject(function(authSession, $location) {
+        var sessionFactory, ses, auth, loc, timeout;
+        beforeEach(inject(function(authSession, $location, $timeout) {
             auth = {
                 getAuthType: function() { return "mockAuth"; },
                 checkLoginResult: {
@@ -170,7 +170,8 @@ describe('secure-ng-resource', function () {
                 checkResponseResult: {},
                 checkResponse: function(response) {
                     return this.checkResponseResult;
-                }
+                },
+                refreshLogin: {}
             };
             spyOn(auth, 'checkLogin').andCallThrough();
             spyOn(auth, 'addAuthToRequestConf').andCallThrough();
@@ -187,6 +188,8 @@ describe('secure-ng-resource', function () {
                 }
             });
             spyOn(loc, 'replace').andReturn(loc);
+
+            timeout = $timeout;
         }));
 
         it('has the correct initial state by default', function() {
@@ -212,6 +215,58 @@ describe('secure-ng-resource', function () {
             ses.login({user: 'alice', pass: 'swordfish'});
             expect(ses.getUserName()).toBeUndefined();
             expect(ses.loggedIn()).toEqual(false);
+        });
+
+        it('creates a refresh timeout if requested by login result', function() {
+            auth.checkLoginResult.newState.millisecondsToRefresh = 10000;
+            spyOn(auth, 'refreshLogin');
+            ses.login({user: 'alice', pass: 'swordfish'});
+            expect(auth.refreshLogin).not.toHaveBeenCalled();
+            timeout.flush();
+            expect(auth.refreshLogin).toHaveBeenCalled();
+        });
+
+        it('cancels the refresh timeout if manually logged out', function() {
+            auth.checkLoginResult.newState.millisecondsToRefresh = 10000;
+            spyOn(auth, 'refreshLogin');
+            ses.login({user: 'alice', pass: 'swordfish'});
+            expect(auth.refreshLogin).not.toHaveBeenCalled();
+            ses.logout();
+
+            timeout(function() {}, 10000); // Fake event so flush doesn't complain
+            timeout.flush();
+
+            expect(auth.refreshLogin).not.toHaveBeenCalled();
+        });
+
+        it('cancels any refresh timeout on new login without refresh', function() {
+            auth.checkLoginResult.newState.millisecondsToRefresh = 10000;
+            spyOn(auth, 'refreshLogin');
+            ses.login({user: 'alice', pass: 'swordfish'});
+            delete auth.checkLoginResult.newState.millisecondsToRefresh;
+            ses.login({user: 'alice', pass: 'swordfish'});
+
+            timeout(function() {}, 10000); // Fake event so flush doesn't complain
+            timeout.flush();
+
+            expect(auth.refreshLogin).not.toHaveBeenCalled();
+        });
+
+        it('replaces any refresh timeout on new login with refresh', function() {
+            auth.checkLoginResult.newState.millisecondsToRefresh = 10000;
+            spyOn(auth, 'refreshLogin');
+            ses.login({user: 'alice', pass: 'swordfish'});
+            auth.checkLoginResult.newState.user = 'someone_else';
+            ses.login({user: 'alice', pass: 'swordfish'});
+
+            timeout(function() {}, 10000); // Fake event so flush doesn't complain
+            timeout.flush();
+
+            expect(auth.refreshLogin).toHaveBeenCalledWith({
+                millisecondsToRefresh: 10000,
+                user: 'someone_else'
+            }, jasmine.any(Function));
+            expect(auth.refreshLogin.callCount).toEqual(1);
         });
 
         it('can drop the session state', function() {
@@ -377,8 +432,9 @@ describe('secure-ng-resource', function () {
             $httpBackend.flush();
         });
 
-        it('calls handler with user on accepted token requests', function () {
+        it('calls handler with correct state on accepted token requests', function () {
             var handler = jasmine.createSpy('handler');
+            var now = new Date().getTime();
             $httpBackend.when('POST', 'https://example.com/oauth/v2/token'
             ).respond({
                 access_token: 'abc',
@@ -390,7 +446,12 @@ describe('secure-ng-resource', function () {
                 handler
             );
             $httpBackend.flush();
-            expect(handler.mostRecentCall.args[0].newState.user).toEqual('alice');
+
+            var newState = handler.mostRecentCall.args[0].newState;
+            expect(newState.accessToken).toEqual('abc');
+            expect(newState.accessTokenExpires).toBeGreaterThan(now + 3000);
+            expect(newState.accessTokenExpires).toBeLessThan(now + 4000);
+            expect(newState.refreshToken).toEqual('xyz');
         });
 
         it('calls handler correctly on denied requests', function () {
@@ -430,6 +491,57 @@ describe('secure-ng-resource', function () {
             $httpBackend.flush();
             expect(handler.mostRecentCall.args[0].status).toEqual('error');
             expect(handler.mostRecentCall.args[0].msg).toMatch(/Were/);
+        });
+
+        it('can use the refresh_token to get a new access token', function () {
+            $httpBackend.expectPOST(
+                'https://example.com/oauth/v2/token',
+                'client_id=my_id&client_secret=my_secret&' +
+                'grant_type=refresh_token&refresh_token=xyz',
+                {
+                    Accept: 'application/json, text/plain, */*',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            ).respond({
+                access_token: 'abc2',
+                refresh_token: 'xyz2',
+                expires_in: 3600
+            });
+
+            var result = {};
+            auth.refreshLogin(
+                { accessToken: 'abc', refreshToken: 'xyz' },
+                function(r) { result = r; }
+            );
+            $httpBackend.flush();
+            expect(result.status).toEqual("accepted");
+            expect(result.newState.accessToken).toEqual('abc2');
+            expect(result.newState.refreshToken).toEqual('xyz2');
+        });
+
+        it('continues to use old refresh_token if new one not given on refresh', function () {
+            $httpBackend.expectPOST(
+                'https://example.com/oauth/v2/token',
+                'client_id=my_id&client_secret=my_secret&' +
+                'grant_type=refresh_token&refresh_token=xyz',
+                {
+                    Accept: 'application/json, text/plain, */*',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            ).respond({
+                access_token: 'abc2',
+                expires_in: 3600
+            });
+
+            var result = {};
+            auth.refreshLogin(
+                { accessToken: 'abc', refreshToken: 'xyz' },
+                function(r) { result = r; }
+            );
+            $httpBackend.flush();
+            expect(result.status).toEqual("accepted");
+            expect(result.newState.accessToken).toEqual('abc2');
+            expect(result.newState.refreshToken).toEqual('xyz');
         });
 
         it('adds Authorization header with token to res requests', function () {
@@ -528,7 +640,7 @@ describe('secure-ng-resource', function () {
             window.handleAuthResponse(d);
             expect(handler).toHaveBeenCalledWith({
                 status: 'accepted',
-                newState: { user: 'bob', sessionId: 'xyz' }
+                newState: { sessionId: 'xyz' }
             })
         });
 

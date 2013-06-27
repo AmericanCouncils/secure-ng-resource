@@ -1,4 +1,4 @@
 - Documentation
-- Dealing with refresh tokens
 - What's with the OPTIONS stuff? Can we add headers, or turn it off, or what?
 - Take code which adds auth info to requests out of the Auth modules
+- Only have one login/refresh request going at a time, track it with promises or something

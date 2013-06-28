@@ -50,8 +50,8 @@ function($scope, secureResource, appSession) {
 When `Thing.query()` executes, SecureResource will add the appropriate
 authorization to the request. If the request is refused (if the user hasn't
 logged in yet, or if they logged in a long while ago and their access
-token expired), then the user
-is redirected to your login page (by default at `/login`).
+token expired), then the user is redirected to your login page (by default
+at `/login`) within your angular app's internal routing system.
 
 Your login controller can interact with the session like so:
 ```js
@@ -68,11 +68,11 @@ function($scope, appSession) {
     // Have your "Log In" button call this
     $scope.login = function () {
         if (!$scope.loginForm.$valid) { return; }
-        appSession.login($scope.credentials, {
-            denied: function(result) {
+        appSession.login($scope.credentials)
+        .then(null, function(result) {
+            if (result.status == 'denied') {
                 alert("Login failed: " + result.msg);
-            },
-            error: function(result) {
+            } else {
                 alert("Something went wrong: " + result.msg);
             }
         });

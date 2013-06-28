@@ -10,7 +10,7 @@ After you've downloaded the secure-ng-resource component with bower, add the
 usual lines in app.js (to `secureNgResource`) and index.html (to
 `components/secure-ng-resource/build/secure-ng-resource.js`).
 
-## Usage
+## Using OAuth password flow
 
 Suppose you are writing an Angular app that is backed by a RESTful web
 service available at `https://example.com/`. Its authentication is based on the
@@ -85,6 +85,38 @@ log in, the `appSession.login` function will take care of that. If the user
 was at another internal route and got kicked over to the login page by an
 auth failure, then they will be sent back there. Otherwise they will be sent
 to the `/` internal route by default.
+
+## Using OpenID
+
+The OpenID system requires more specific behavior from the back-end server
+than the OAuth system. When creating the OpenID auth instance, you supply
+a `host` which is typically your server, and a `beginPath` at that host.
+
+The login process goes like so:
+
+1. The user supplies an OpenID identifier as their credentials. You
+   should pass this identifier URL to AuthSession.login() in an object
+   under the key 'openid_identifier'.
+2. Secure-ng-resource sends a POST request to `beginPath`, with
+   form encoding, containing the identifier URL under the name
+   'openid_identifier'.
+3. The server should discover the provider at that identifier and
+   respond with a redirect to the provider, as per normal OpenID
+   protocol. Secure-ng-resource will send the user to that URL in a
+   popup window.
+4. The return address must eventually lead to a page that executes the
+   Javascript code `window.opener.handleAuthResponse(j);window.close();`
+   where j is an object with a boolean key `approved`. If `approved` is
+   true, then there needs to be another key `sessionId` which will
+   be used to authenticate the user from then on. If `approved` is false,
+   for example because the user needs to be pre-recognized by the server
+   even if their OpenId is valid, then you can optionally add a `message`
+   key explaining why access was denied.
+5. Assuming access was allowed, then from that point forward any
+   requests that go through secureNgResource using this
+   authentication session will include an `Authorization` header of the
+   form `SesID 123ABC` where `123ABC` is the session id that was given
+   to `handleAuthResponse`. Note that cookies are *not* used.
 
 ## Credits
 

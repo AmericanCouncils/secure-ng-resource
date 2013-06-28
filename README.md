@@ -1,5 +1,9 @@
 # secure-ng-resource
 
+A wrapper around ngResource that adds authentication to requests, automatically
+asking the user for credentials when needed. Currently supports OAuth password
+flow, and OpenID verification with an Authorization header to pass the key.
+
 ## Installation
 
 After you've downloaded the secure-ng-resource component with bower, add the

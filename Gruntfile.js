@@ -100,7 +100,7 @@ module.exports = function (grunt) {
             options: {
                 banner: '/***********************************************\n' +
                     '* secure-ng-resource JavaScript Library\n' +
-                    '* https://github.com/davidmikesimon/secure-ng-resource/ \n' +
+                    '* https://github.com/AmericanCouncils/secure-ng-resource/ \n' +
                     '* License: MIT (http://www.opensource.org/licenses/mit-license.php)\n' +
                     '* Compiled At: <%= grunt.template.today("mm/dd/yyyy HH:MM") %>\n' +
                     '***********************************************/\n' +
@@ -145,5 +145,4 @@ module.exports = function (grunt) {
     //grunt.registerTask('test', ['karma']);
     grunt.registerTask('debug', ['concat:debug']);
     grunt.registerTask('prod', ['concat:prod', 'uglify']);
-
 };

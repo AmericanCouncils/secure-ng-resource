@@ -1,6 +1,6 @@
 {
   "name": "secure-ng-resource",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Secure access to RESTful web APIs",
   "main": "secure-ng-resource.min.js",
   "directories": {

@@ -1,5 +1,7 @@
 # secure-ng-resource
 
+[![Build Status](https://travis-ci.org/AmericanCouncils/secure-ng-resource.png?branch=master)](https://travis-ci.org/AmericanCouncils/secure-ng-resource)
+
 A wrapper around ngResource that adds authentication to requests, automatically
 asking the user for credentials when needed. Currently supports OAuth password
 flow, and OpenID verification with an Authorization header to pass the key.

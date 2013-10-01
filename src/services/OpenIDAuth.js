@@ -9,9 +9,8 @@ angular.module('secureNgResource')
 .factory('openIDAuth', [
 '$q',
 function($q) {
-    var OpenIDAuth = function (host, beginPath) {
-        this.host = host;
-        this.beginPath = beginPath;
+    var OpenIDAuth = function (authUrl) {
+        this.authUrl = authUrl;
     };
 
     OpenIDAuth.prototype = {
@@ -53,7 +52,7 @@ function($q) {
             popup.document.write(
                 '<form id="shimform"' +
                 ' method="post"' +
-                ' action="' + this.host + this.beginPath + '">' +
+                ' action="' + this.authUrl + '">' +
                 '<input type="hidden" name="openid_identifier" id="oid" />' +
                 '</form>'
             );
@@ -95,8 +94,8 @@ function($q) {
         }
     };
 
-    var OpenIDAuthFactory = function(host, beginPath) {
-        return new OpenIDAuth(host, beginPath);
+    var OpenIDAuthFactory = function(authUrl) {
+        return new OpenIDAuth(authUrl);
     };
     return OpenIDAuthFactory;
 }]);

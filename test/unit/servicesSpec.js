@@ -540,7 +540,7 @@ describe('secure-ng-resource', function () {
             });
             auth.checkLogin({user: 'alice', pass: 'swordfish'}).then(handler);
             $httpBackend.flush();
-            
+
             var httpConf = {headers: {}};
             auth.addAuthToRequestConf(httpConf, state);
             expect(httpConf.headers.Authorization).toEqual("Bearer abc");
@@ -559,10 +559,7 @@ describe('secure-ng-resource', function () {
     describe('OpenIDAuth', function () {
         var auth, fakeInputElement, fakeFormElement, fakeDocument;
         beforeEach(inject(function(openIDAuth) {
-            auth = openIDAuth(
-                'https://example.com',
-                '/openid_begin'
-            );
+            auth = openIDAuth('https://example.com/openid_begin');
 
             fakeInputElement = { value: null };
             fakeFormElement = { submit: function() {} };

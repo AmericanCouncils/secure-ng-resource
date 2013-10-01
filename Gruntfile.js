@@ -21,7 +21,7 @@ module.exports = function (grunt) {
         src = src.replace(/\s{2,}(\r|\n|\s){2,}$/gm, '');
         return src;
     };
-    
+
     grunt.registerMultiTask('concat', 'Concatenate files.', function () {
         // Merge task-specific and/or target-specific options with these defaults.
         var options = this.options({
@@ -141,7 +141,7 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-clean');
     // Default task(s).
     grunt.registerTask('test', ['jshint', 'concat:debug', 'karma']);
-    grunt.registerTask('default', ['test']);
+    grunt.registerTask('default', ['test', 'prod']);
     //grunt.registerTask('test', ['karma']);
     grunt.registerTask('debug', ['concat:debug']);
     grunt.registerTask('prod', ['concat:prod', 'uglify']);

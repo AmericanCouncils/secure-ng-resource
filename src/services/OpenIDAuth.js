@@ -9,6 +9,68 @@ angular.module('secureNgResource')
 .factory('openIDAuth', [
 '$q',
 function($q) {
+    var loginModes = {
+        // ###
+        // ### Pop-up login window mode
+        // ###
+        popup: {
+            begin: function(oid, authUrl, deferred) {
+                // TODO: Supply the receiver handler ourselves instead of relying
+                // on the auth server to provide a page that calls
+                // window.opener.handleAuthResponse.
+                // TODO: Deal with cross-frame cross-origin problems
+                // TODO: Test on IE
+                window.handleAuthResponse = function(d) {
+                    delete window.handleAuthResponse;
+                    delete window.openIdPopup;
+
+                    if (d.approved) {
+                        deferred.resolve({
+                            status: 'accepted',
+                            newState: {
+                                sessionId: d.sessionId
+                            }
+                        });
+                    } else {
+                        deferred.reject({
+                            status: 'denied',
+                            msg: d.message || 'Access denied'
+                        });
+                    }
+                };
+
+                // TODO: Somehow make this only apply if the window is still open
+                if (window.hasOwnProperty('openIdPopup')) {
+                    if ('focus' in window.openIdPopup) {
+                        window.openIdPopup.focus();
+                    }
+                    return;
+                }
+
+                var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
+                var popup = window.open('', 'openid_popup', opts);
+                popup.document.write(
+                    '<form id="shimform"' +
+                    ' method="post"' +
+                    ' action="' + authUrl + '">' +
+                    '<input type="hidden" name="openid_identifier" id="oid" />' +
+                    '</form>'
+                );
+                popup.document.getElementById('oid').value = oid;
+                popup.document.getElementById('shimform').submit();
+                window.openIdPopup = popup;
+            },
+            cancel: function() {
+                if (window.hasOwnProperty('openIdPopup')) {
+                    window.openIdPopup.close();
+
+                    delete window.openIdPopup;
+                    delete window.handleAuthResponse;
+                }
+            }
+        }
+    };
+
     var OpenIDAuth = function (authUrl) {
         this.authUrl = authUrl;
     };
@@ -20,57 +82,12 @@ function($q) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-
-            window.handleAuthResponse = function(d) {
-                delete window.handleAuthResponse;
-                delete window.openIdPopup;
-
-                if (d.approved) {
-                    deferred.resolve({
-                        status: 'accepted',
-                        newState: {
-                            sessionId: d.sessionId
-                        }
-                    });
-                } else {
-                    deferred.reject({
-                        status: 'denied',
-                        msg: d.message || 'Access denied'
-                    });
-                }
-            };
-
-            if (window.hasOwnProperty('openIdPopup')) {
-                if ('focus' in window.openIdPopup) {
-                    window.openIdPopup.focus();
-                }
-                return;
-            }
-
-            var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
-            var popup = window.open('', 'openid_popup', opts);
-            popup.document.write(
-                '<form id="shimform"' +
-                ' method="post"' +
-                ' action="' + this.authUrl + '">' +
-                '<input type="hidden" name="openid_identifier" id="oid" />' +
-                '</form>'
-            );
-            var oid = credentials['openid_identifier'];
-            popup.document.getElementById('oid').value = oid;
-            popup.document.getElementById('shimform').submit();
-            window.openIdPopup = popup;
-
+            loginModes.popup.begin(credentials['openid_identifier'], this.authUrl, deferred);
             return deferred.promise;
         },
 
         cancelLogin: function() {
-            if (window.hasOwnProperty('openIdPopup')) {
-                window.openIdPopup.close();
-
-                delete window.openIdPopup;
-                delete window.handleAuthResponse;
-            }
+            loginModes.popup.cancel();
         },
 
         refreshLogin: function(/*state*/) {

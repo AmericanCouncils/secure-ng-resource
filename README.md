@@ -99,14 +99,12 @@ The login process goes like so:
 1. The user supplies an OpenID identifier as their credentials. You
    should pass this identifier URL to AuthSession.login() in an object
    under the key 'openid_identifier'.
-2. Secure-ng-resource sends a POST request to `beginPath`, with
+2. Secure-ng-resource sends a POST request via AJAX to `beginPath`, with
    form encoding, containing the identifier URL under the name
-   'openid_identifier'.
-3. The server should discover the provider at that identifier and
-   respond with a redirect to the provider, as per normal OpenID
-   protocol. Secure-ng-resource will send the user to that URL in a
-   popup window.
-4. The return address must eventually lead to a page that executes the
+   'openid_identifier'. The server should discover the provider
+   at that identifier and respond with a redirect to the provider,
+   as per normal OpenID protocol.
+3. The return address must eventually lead to a page that executes the
    Javascript code `window.opener.handleAuthResponse(j);window.close();`
    where j is an object with a boolean key `approved`. If `approved` is
    true, then there needs to be another key `sessionId` which will
@@ -114,11 +112,13 @@ The login process goes like so:
    for example because the user needs to be pre-recognized by the server
    even if their OpenId is valid, then you can optionally add a `message`
    key explaining why access was denied.
-5. Assuming access was allowed, then from that point forward any
+4. Assuming access was allowed, then from that point forward any
    requests that go through secureNgResource using this
    authentication session will include an `Authorization` header of the
    form `SesID 123ABC` where `123ABC` is the session id that was given
-   to `handleAuthResponse`. Note that cookies are *not* used.
+   to `handleAuthResponse`. Note that cookies are *not* used in
+   these requests, although the client does keep its own cookie with
+   the session ID cached.
 
 ## Credits
 

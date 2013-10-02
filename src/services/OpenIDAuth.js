@@ -71,8 +71,12 @@ function($q) {
         }
     };
 
-    var OpenIDAuth = function (authUrl) {
+    var OpenIDAuth = function (authUrl, loginMode) {
         this.authUrl = authUrl;
+        this.login = loginModes[loginMode];
+        if (!this.login) {
+            throw 'Invalid login mode';
+        }
     };
 
     OpenIDAuth.prototype = {
@@ -82,7 +86,7 @@ function($q) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-            loginModes.popup.begin(credentials['openid_identifier'], this.authUrl, deferred);
+            this.login.begin(credentials['openid_identifier'], this.authUrl, deferred);
             return deferred.promise;
         },
 
@@ -111,8 +115,8 @@ function($q) {
         }
     };
 
-    var OpenIDAuthFactory = function(authUrl) {
-        return new OpenIDAuth(authUrl);
+    var OpenIDAuthFactory = function(authUrl, loginMode) {
+        return new OpenIDAuth(authUrl, loginMode);
     };
     return OpenIDAuthFactory;
 }]);

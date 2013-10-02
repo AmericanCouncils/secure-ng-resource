@@ -559,7 +559,7 @@ describe('secure-ng-resource', function () {
     describe('OpenIDAuth', function () {
         var auth, fakeInputElement, fakeFormElement, fakeDocument;
         beforeEach(inject(function(openIDAuth) {
-            auth = openIDAuth('https://example.com/openid_begin');
+            auth = openIDAuth('https://example.com/openid_begin', 'popup');
 
             fakeInputElement = { value: null };
             fakeFormElement = { submit: function() {} };

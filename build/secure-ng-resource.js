@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/02/2013 12:35
+* Compiled At: 10/02/2013 15:57
 ***********************************************/
 (function(window) {
 'use strict';
@@ -253,8 +253,7 @@ function($q) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-            this.login.begin(credentials['openid_identifier'], this.authUrl, deferred);
-            return deferred.promise;
+            this.login.begin(credentials['openid_identifier'], this.authUrl, deferred);return deferred.promise;
         },
 
         cancelLogin: function() {

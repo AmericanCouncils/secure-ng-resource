@@ -87,6 +87,8 @@ function($q) {
         checkLogin: function (credentials) {
             var deferred = $q.defer();
             this.login.begin(credentials['openid_identifier'], this.authUrl, deferred);
+            // TODO: Maybe need to not return a new promise if the begin call returned early due
+            // to login dialog already being open.
             return deferred.promise;
         },
 

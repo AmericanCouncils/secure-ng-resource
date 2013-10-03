@@ -34,7 +34,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             this.reset();
         }
     };
-    
+
     AuthSession.prototype = {
         getUserName: function () {
             if (this.loggedIn()) {
@@ -71,7 +71,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             if (!this.loggedIn()) {
                 throw 'Cannot refresh, not logged in.';
             }
-            
+
             // FIXME Do something about failure, maybe retry soonish
             var me = this;
             return this.auth.refreshLogin(this.state).then(function(result) {

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/02/2013 15:57
+* Compiled At: 10/03/2013 16:46
 ***********************************************/
 (function(window) {
 'use strict';
@@ -47,6 +47,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             this.reset();
         }
     };
+
     AuthSession.prototype = {
         getUserName: function () {
             if (this.loggedIn()) {
@@ -198,7 +199,8 @@ function($q) {
                         deferred.resolve({
                             status: 'accepted',
                             newState: {
-                                sessionId: d.sessionId
+                                sessionId: d.sessionId,
+                                user: d.user || undefined
                             }
                         });
                     } else {

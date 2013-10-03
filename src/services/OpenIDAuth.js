@@ -28,7 +28,8 @@ function($q) {
                         deferred.resolve({
                             status: 'accepted',
                             newState: {
-                                sessionId: d.sessionId
+                                sessionId: d.sessionId,
+                                user: d.user || undefined
                             }
                         });
                     } else {

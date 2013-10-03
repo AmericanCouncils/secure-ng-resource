@@ -618,7 +618,7 @@ describe('secure-ng-resource', function () {
             $scope.$apply();
             expect(handler).toHaveBeenCalledWith({
                 status: 'accepted',
-                newState: { sessionId: 'xyz' }
+                newState: { sessionId: 'xyz', user: 'bob' }
             })
         });
 

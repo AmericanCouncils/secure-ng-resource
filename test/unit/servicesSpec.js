@@ -579,6 +579,7 @@ describe('secure-ng-resource', function () {
             spyOn(window, 'open').andReturn(fakeWindow);
 
             delete window.handleAuthResponse;
+            delete window.openIdPopup;
         }));
 
         it('returns the correct auth type', function () {
@@ -600,6 +601,16 @@ describe('secure-ng-resource', function () {
             );
             expect(fakeInputElement.value).toEqual('foo');
             expect(fakeFormElement.submit).toHaveBeenCalled();
+        });
+
+        it('allows additional GET arguments to be passed to server for OpenID req', function () {
+            auth.checkLogin({openid_identifier: 'foo', query: { bar: 'narf' } });
+            expect(fakeDocument.write).toHaveBeenCalledWith(
+                '<form id="shimform" method="post" ' +
+                'action="https://example.com/openid_begin?bar=narf">' +
+                '<input type="hidden" name="openid_identifier" id="oid" />' +
+                '</form>'
+            );
         });
 
         it('creates and cleans up response handler', function () {

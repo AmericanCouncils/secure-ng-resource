@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/03/2013 16:46
+* Compiled At: 10/08/2013 13:19
 ***********************************************/
 (function(window) {
 'use strict';
@@ -191,7 +191,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
 '$q',
 function($q) {
     var loginModes = {popup: {
-            begin: function(oid, authUrl, deferred) {window.handleAuthResponse = function(d) {
+            begin: function(credentials, authUrl, deferred) {window.handleAuthResponse = function(d) {
                     delete window.handleAuthResponse;
                     delete window.openIdPopup;
 
@@ -216,6 +216,21 @@ function($q) {
                     return;
                 }
 
+                if (typeof credentials.query === 'object') {
+                    authUrl += '?';
+                    var first = true;
+                    angular.forEach(credentials.query, function(value, key) {
+                        if (first) {
+                            first = false;
+                        } else {
+                            authUrl += '&';
+                        }
+                        authUrl += encodeURIComponent(key);
+                        authUrl += '=';
+                        authUrl += encodeURIComponent(value);
+                    });
+                }
+
                 var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
                 var popup = window.open('', 'openid_popup', opts);
                 popup.document.write(
@@ -225,7 +240,8 @@ function($q) {
                     '<input type="hidden" name="openid_identifier" id="oid" />' +
                     '</form>'
                 );
-                popup.document.getElementById('oid').value = oid;
+                popup.document.getElementById('oid').value =
+                    credentials['openid_identifier'];
                 popup.document.getElementById('shimform').submit();
                 window.openIdPopup = popup;
             },
@@ -255,7 +271,7 @@ function($q) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-            this.login.begin(credentials['openid_identifier'], this.authUrl, deferred);return deferred.promise;
+            this.login.begin(credentials, this.authUrl, deferred);return deferred.promise;
         },
 
         cancelLogin: function() {

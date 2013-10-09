@@ -28,9 +28,9 @@ describe('OpenIDAuth', function () {
         expect(result.newState.user).toEqual('foo');
     });
 
-    it('returns a denied state on OAuth-like login with password "fail"', function () {
+    it('returns a denied state on OAuth-like login with "fail" in password', function () {
         var result = null;
-        auth.checkLogin({user: 'foo', pass: 'fail'})
+        auth.checkLogin({user: 'foo', pass: 'failotron'})
             .then(null, function(r) { result = r; });
         $scope.$apply();
         expect(result.status).toEqual('denied');
@@ -43,6 +43,14 @@ describe('OpenIDAuth', function () {
         $scope.$apply();
         expect(result.status).toEqual('accepted')
         expect(result.newState.user).toEqual('bar@example.com');
+    });
+
+    it('returns a denied state on OpenID-like login with "fail" in URL', function () {
+        var result = null;
+        auth.checkLogin({openid_identifier: 'https://fail.com/foo/bar'})
+            .then(null, function(r) { result = r; });
+        $scope.$apply();
+        expect(result.status).toEqual('denied')
     });
 
     it('returns an accepted state with default username on other login', function () {

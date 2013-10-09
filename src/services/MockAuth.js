@@ -30,7 +30,10 @@ function($q) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-            if (credentials.pass === 'fail') {
+            if (
+                String(credentials.pass).indexOf('fail') > -1 ||
+                String(credentials['openid_identifier']).indexOf('fail') > -1
+            ) {
                 deferred.reject({status: 'denied'});
             } else {
                 deferred.resolve({
@@ -40,6 +43,7 @@ function($q) {
                     }
                 });
             }
+
             return deferred.promise;
         }
     };

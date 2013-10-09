@@ -45,6 +45,22 @@ function($q) {
             }
 
             return deferred.promise;
+        },
+
+        cancelLogin: function() { },
+
+        refreshLogin: function() { },
+
+        checkResponse: function (response) {
+            var authResult = {};
+            if (response.status === 401 || response.status === 403) {
+                authResult.authFailure = true;
+            }
+            return authResult;
+        },
+
+        addAuthToRequestConf: function (httpConf, state) {
+            httpConf.headers.Authorization = 'Mock ' + state.user;
         }
     };
 

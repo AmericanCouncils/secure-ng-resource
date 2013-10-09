@@ -61,4 +61,27 @@ describe('OpenIDAuth', function () {
         expect(result.status).toEqual('accepted');
         expect(result.newState.user).toEqual('john.doe@example.com');
     });
+
+    it('adds auth header to res requests', function () {
+        var state = {};
+        var handler = function(result) {
+            state = result.newState;
+        };
+        auth.checkLogin({user: 'foo', pass: 'bob'}).then(handler);
+        $scope.$apply();
+
+        var httpConf = {headers: {}};
+        auth.addAuthToRequestConf(httpConf, state);
+        expect(httpConf.headers.Authorization).toEqual('Mock foo');
+    });
+
+    it('only treats res 401/403 HTTP responses as auth fails', function () {
+        expect(auth.checkResponse({status: 200}).authFailure).toBeFalsy();
+        expect(auth.checkResponse({status: 400}).authFailure).toBeFalsy();
+        expect(auth.checkResponse({status: 401}).authFailure).toBeTruthy();
+        expect(auth.checkResponse({status: 402}).authFailure).toBeFalsy();
+        expect(auth.checkResponse({status: 403}).authFailure).toBeTruthy();
+        expect(auth.checkResponse({status: 404}).authFailure).toBeFalsy();
+        expect(auth.checkResponse({status: 500}).authFailure).toBeFalsy();
+    });
 });

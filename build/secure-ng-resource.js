@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/09/2013 11:42
+* Compiled At: 10/09/2013 11:50
 ***********************************************/
 (function(window) {
 'use strict';
@@ -184,6 +184,25 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
     };
     AuthSessionFactory.dictionary = sessionDictionary;
     return AuthSessionFactory;
+}]);
+
+'use strict';
+
+angular.module('secureNgResource')
+.factory('mockAuth', [
+function() {
+    var MockAuth = function() {};
+
+    MockAuth.prototype = {
+        getAuthType: function () {
+            return 'MockAuth';
+        }
+    };
+
+    var MockAuthFactory = function() {
+        return new MockAuth();
+    };
+    return MockAuthFactory;
 }]);
 
 'use strict';angular.module('secureNgResource')

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/09/2013 11:50
+* Compiled At: 10/09/2013 13:34
 ***********************************************/
 (function(window) {
 'use strict';
@@ -190,12 +190,45 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
 
 angular.module('secureNgResource')
 .factory('mockAuth', [
-function() {
+'$q',
+function($q) {
     var MockAuth = function() {};
+
+    var guessUser = function(credentials) {
+        if (credentials.user) {
+            return credentials.user;
+        }
+
+        if (credentials['openid_identifier']) {
+            var oid = credentials['openid_identifier'];
+            var re = /^https:\/\/([^\/]+)\/.*?([^\/]+)$/;
+            var match = re.exec(oid);
+            if (match) {
+                return match[2] + '@' + match[1];
+            }
+        }
+
+        return 'john.doe@example.com';
+    };
 
     MockAuth.prototype = {
         getAuthType: function () {
             return 'MockAuth';
+        },
+
+        checkLogin: function (credentials) {
+            var deferred = $q.defer();
+            if (credentials.pass === 'fail') {
+                deferred.reject({status: 'denied'});
+            } else {
+                deferred.resolve({
+                    status: 'accepted',
+                    newState: {
+                        user: guessUser(credentials)
+                    }
+                });
+            }
+            return deferred.promise;
         }
     };
 

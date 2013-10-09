@@ -116,11 +116,12 @@ function($q) {
         },
 
         refreshLogin: function(/*state*/) {
-            // Maybe should do a no-op http request to keep session fresh?
+            // Currently this just does nothing, OpenID doesn't have explicit timeouts.
+            // TODO: Maybe should do a no-op http request to keep session fresh?
+            // TODO: Or maybe at least return a positive result.
             var deferred = $q.defer();
-            var p = deferred.promise;
             deferred.reject();
-            return p;
+            return deferred.promise;
         },
 
         checkResponse: function (response) {

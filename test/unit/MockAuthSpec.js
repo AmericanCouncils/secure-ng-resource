@@ -62,6 +62,21 @@ describe('OpenIDAuth', function () {
         expect(result.newState.user).toEqual('john.doe@example.com');
     });
 
+    it('pretends to refresh logins', function () {
+        var state;
+        var handler = function(result) {
+            state = result.newState;
+        };
+        auth.checkLogin({user: 'foo', pass: 'bob'}).then(handler);
+        $scope.$apply();
+
+        var result;
+        auth.refreshLogin(state).then(function(r) { result = r; });
+        $scope.$apply();
+        expect(result.status).toEqual("accepted");
+        expect(result.newState).toEqual(state);
+    });
+
     it('adds auth header to res requests', function () {
         var state = {};
         var handler = function(result) {

@@ -49,7 +49,14 @@ function($q) {
 
         cancelLogin: function() { },
 
-        refreshLogin: function() { },
+        refreshLogin: function(state) {
+            var deferred = $q.defer();
+            deferred.resolve({
+                status: 'accepted',
+                newState: state
+            });
+            return deferred.promise;
+        },
 
         checkResponse: function (response) {
             var authResult = {};

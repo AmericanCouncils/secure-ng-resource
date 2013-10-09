@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/08/2013 15:40
+* Compiled At: 10/09/2013 11:17
 ***********************************************/
 (function(window) {
 'use strict';
@@ -191,9 +191,12 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
 '$q',
 function($q) {
     var loginModes = {popup: {
-            begin: function(credentials, authUrl, deferred) {window.handleAuthResponse = function(d) {
+            begin: function(credentials, authUrl, deferred) {
+                var cleanUp = function() {
                     delete window.handleAuthResponse;
                     delete window.openIdPopup;
+                };window.handleAuthResponse = function(d) {
+                    cleanUp();
 
                     if (d.approved) {
                         deferred.resolve({
@@ -209,11 +212,11 @@ function($q) {
                             msg: d.message || 'Access denied'
                         });
                     }
-                };if (window.hasOwnProperty('openIdPopup')) {
-                    if ('focus' in window.openIdPopup) {
-                        window.openIdPopup.focus();
-                    }
-                    return;
+                };
+
+                if (window.hasOwnProperty('openIdPopup') && !window.openIdPopup.closed) {
+                    window.openIdPopup.close();
+                    cleanUp();
                 }
 
                 if (typeof credentials.query === 'object') {
@@ -233,6 +236,8 @@ function($q) {
 
                 var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
                 var popup = window.open('', 'openid_popup', opts);
+                popup.onclose = function() { cleanUp(); };
+                popup.onbeforeunload = function() { cleanUp(); };
                 popup.document.write(
                     '<form id="shimform"' +
                     ' method="post"' +
@@ -248,7 +253,6 @@ function($q) {
             cancel: function() {
                 if (window.hasOwnProperty('openIdPopup')) {
                     window.openIdPopup.close();
-
                     delete window.openIdPopup;
                     delete window.handleAuthResponse;
                 }

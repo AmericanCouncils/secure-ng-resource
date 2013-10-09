@@ -15,14 +15,18 @@ function($q) {
         // ###
         popup: {
             begin: function(credentials, authUrl, deferred) {
+                var cleanUp = function() {
+                    delete window.handleAuthResponse;
+                    delete window.openIdPopup;
+                };
+
                 // TODO: Supply the receiver handler ourselves instead of relying
                 // on the auth server to provide a page that calls
-                // window.opener.handleAuthResponse.
+                // window.opener.handleAuthResponse. Somehow...
                 // TODO: Deal with cross-frame cross-origin problems
                 // TODO: Test on IE
                 window.handleAuthResponse = function(d) {
-                    delete window.handleAuthResponse;
-                    delete window.openIdPopup;
+                    cleanUp();
 
                     if (d.approved) {
                         deferred.resolve({
@@ -40,12 +44,9 @@ function($q) {
                     }
                 };
 
-                // TODO: Somehow make this only apply if the window is still open
-                if (window.hasOwnProperty('openIdPopup')) {
-                    if ('focus' in window.openIdPopup) {
-                        window.openIdPopup.focus();
-                    }
-                    return;
+                if (window.hasOwnProperty('openIdPopup') && !window.openIdPopup.closed) {
+                    window.openIdPopup.close();
+                    cleanUp();
                 }
 
                 if (typeof credentials.query === 'object') {
@@ -65,6 +66,8 @@ function($q) {
 
                 var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
                 var popup = window.open('', 'openid_popup', opts);
+                popup.onclose = function() { cleanUp(); };
+                popup.onbeforeunload = function() { cleanUp(); };
                 popup.document.write(
                     '<form id="shimform"' +
                     ' method="post"' +
@@ -80,7 +83,6 @@ function($q) {
             cancel: function() {
                 if (window.hasOwnProperty('openIdPopup')) {
                     window.openIdPopup.close();
-
                     delete window.openIdPopup;
                     delete window.handleAuthResponse;
                 }

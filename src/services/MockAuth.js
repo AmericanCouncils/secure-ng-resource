@@ -13,7 +13,7 @@ function($q) {
 
         if (credentials['openid_identifier']) {
             var oid = credentials['openid_identifier'];
-            var re = /^https:\/\/([^\/]+)\/.*?([^\/]+)$/;
+            var re = /^(?:[a-z]+:\/\/)?([^\/]+)\/.*?([^\/]+)$/;
             var match = re.exec(oid);
             if (match) {
                 return match[2] + '@' + match[1];

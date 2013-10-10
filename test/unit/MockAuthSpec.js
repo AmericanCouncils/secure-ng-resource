@@ -38,7 +38,20 @@ describe('OpenIDAuth', function () {
 
     it('returns an accepted state with user guess on OpenID-like login', function () {
         var result = null;
+
         auth.checkLogin({openid_identifier: 'https://example.com/foo/bar'})
+            .then(function(r) { result = r; });
+        $scope.$apply();
+        expect(result.status).toEqual('accepted')
+        expect(result.newState.user).toEqual('bar@example.com');
+
+        auth.checkLogin({openid_identifier: 'http://example.com/foo/bar'})
+            .then(function(r) { result = r; });
+        $scope.$apply();
+        expect(result.status).toEqual('accepted')
+        expect(result.newState.user).toEqual('bar@example.com');
+
+        auth.checkLogin({openid_identifier: 'example.com/foo/bar'})
             .then(function(r) { result = r; });
         $scope.$apply();
         expect(result.status).toEqual('accepted')

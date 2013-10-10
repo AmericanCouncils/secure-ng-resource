@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/09/2013 14:46
+* Compiled At: 10/10/2013 12:46
 ***********************************************/
 (function(window) {
 'use strict';
@@ -201,7 +201,7 @@ function($q) {
 
         if (credentials['openid_identifier']) {
             var oid = credentials['openid_identifier'];
-            var re = /^https:\/\/([^\/]+)\/.*?([^\/]+)$/;
+            var re = /^(?:[a-z]+:\/\/)?([^\/]+)\/.*?([^\/]+)$/;
             var match = re.exec(oid);
             if (match) {
                 return match[2] + '@' + match[1];

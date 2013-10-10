@@ -56,6 +56,12 @@ describe('OpenIDAuth', function () {
         $scope.$apply();
         expect(result.status).toEqual('accepted')
         expect(result.newState.user).toEqual('bar@example.com');
+
+        auth.checkLogin({openid_identifier: 'somewhere.com'})
+            .then(function(r) { result = r; });
+        $scope.$apply();
+        expect(result.status).toEqual('accepted')
+        expect(result.newState.user).toEqual('john.doe@somewhere.com');
     });
 
     it('returns a denied state on OpenID-like login with "fail" in URL', function () {

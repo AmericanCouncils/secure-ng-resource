@@ -13,10 +13,12 @@ function($q) {
 
         if (credentials['openid_identifier']) {
             var oid = credentials['openid_identifier'];
-            var re = /^(?:[a-z]+:\/\/)?([^\/]+)\/.*?([^\/]+)$/;
+            var re = /^(?:[a-z]+:\/\/)?([^\/]+).*?([^\/]*)$/;
             var match = re.exec(oid);
             if (match) {
-                return match[2] + '@' + match[1];
+                var user = match[2] || 'john.doe';
+                var domain = match[1];
+                return user + '@' + domain;
             }
         }
 

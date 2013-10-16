@@ -1,10 +1,10 @@
 files = [
     JASMINE,
     JASMINE_ADAPTER,
-    '../lib/angular.js',
-    '../lib/angular-cookies.js',
-    '../lib/angular-resource.js',
-    'lib/angular/angular-mocks.js',
+    '../bower_components/angular/angular.js',
+    '../bower_components/angular-cookies/angular-cookies.js',
+    '../bower_components/angular-resource/angular-resource.js',
+    '../bower_components/angular-mocks/angular-mocks.js',
     '../build/secure-ng-resource.debug.js',
     'unit/*Spec.js'
 ];

@@ -1,5 +1,14 @@
 {
   "name": "secure-ng-resource",
   "version": "0.3.4",
-  "main": ["./build/secure-ng-resource.min.js"]
+  "main": ["./build/secure-ng-resource.min.js"],
+  "dependencies": {
+    "angular": "*",
+    "angular-cookies": "*",
+    "angular-resource": "*"
+  },
+  "devDependencies": {
+    "angular-mocks": "1.2.0-rc.3",
+    "jasmine": "1.2.0"
+  }
 }

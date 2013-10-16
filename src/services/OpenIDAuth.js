@@ -1,18 +1,18 @@
 'use strict';
 
-// No-refresh OpenID approach based on Brian Ellin's:
-// http://openid-demo.appspot.com/
-// Which was based in turn on a post by Luke Shepard:
-// http://www.sociallipstick.com/?p=86
 
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$q',
-function($q) {
+'$q', '$rootScope',
+function($q, $rootScope) {
     var loginModes = {
         // ###
         // ### Pop-up login window mode
         // ###
+        // No-refresh OpenID approach based on Brian Ellin's:
+        // http://openid-demo.appspot.com/
+        // Which was based in turn on a post by Luke Shepard:
+        // http://www.sociallipstick.com/?p=86
         popup: {
             begin: function(credentials, authUrl, deferred) {
                 var cleanUp = function() {
@@ -26,22 +26,24 @@ function($q) {
                 // TODO: Deal with cross-frame cross-origin problems
                 // TODO: Test on IE
                 window.handleAuthResponse = function(d) {
-                    cleanUp();
+                    $rootScope.$apply(function() {
+                        cleanUp();
 
-                    if (d.approved) {
-                        deferred.resolve({
-                            status: 'accepted',
-                            newState: {
-                                sessionId: d.sessionId,
-                                user: d.user || undefined
-                            }
-                        });
-                    } else {
-                        deferred.reject({
-                            status: 'denied',
-                            msg: d.message || 'Access denied'
-                        });
-                    }
+                        if (d.approved) {
+                            deferred.resolve({
+                                status: 'accepted',
+                                newState: {
+                                    sessionId: d.sessionId,
+                                    user: d.user || undefined
+                                }
+                            });
+                        } else {
+                            deferred.reject({
+                                status: 'denied',
+                                msg: d.message || 'Access denied'
+                            });
+                        }
+                    });
                 };
 
                 if (window.hasOwnProperty('openIdPopup') && !window.openIdPopup.closed) {
@@ -106,8 +108,6 @@ function($q) {
         checkLogin: function (credentials) {
             var deferred = $q.defer();
             this.login.begin(credentials, this.authUrl, deferred);
-            // TODO: Maybe need to not return a new promise if the begin call returned early due
-            // to login dialog already being open.
             return deferred.promise;
         },
 
@@ -116,7 +116,7 @@ function($q) {
         },
 
         refreshLogin: function(/*state*/) {
-            // Currently this just does nothing, OpenID doesn't have explicit timeouts.
+            // Currently this just does nothing, our ad-hoc protocol doesn't have explicit timeouts.
             // TODO: Maybe should do a no-op http request to keep session fresh?
             // TODO: Or maybe at least return a positive result.
             var deferred = $q.defer();

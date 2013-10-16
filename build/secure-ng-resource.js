@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 10/16/2013 12:12
+* Compiled At: 10/16/2013 12:40
 ***********************************************/
 (function(window) {
 'use strict';
@@ -267,32 +267,37 @@ function($q) {
     return MockAuthFactory;
 }]);
 
-'use strict';angular.module('secureNgResource')
+'use strict';
+
+
+angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$q',
-function($q) {
+'$q', '$rootScope',
+function($q, $rootScope) {
     var loginModes = {popup: {
             begin: function(credentials, authUrl, deferred) {
                 var cleanUp = function() {
                     delete window.handleAuthResponse;
                     delete window.openIdPopup;
                 };window.handleAuthResponse = function(d) {
-                    cleanUp();
+                    $rootScope.$apply(function() {
+                        cleanUp();
 
-                    if (d.approved) {
-                        deferred.resolve({
-                            status: 'accepted',
-                            newState: {
-                                sessionId: d.sessionId,
-                                user: d.user || undefined
-                            }
-                        });
-                    } else {
-                        deferred.reject({
-                            status: 'denied',
-                            msg: d.message || 'Access denied'
-                        });
-                    }
+                        if (d.approved) {
+                            deferred.resolve({
+                                status: 'accepted',
+                                newState: {
+                                    sessionId: d.sessionId,
+                                    user: d.user || undefined
+                                }
+                            });
+                        } else {
+                            deferred.reject({
+                                status: 'denied',
+                                msg: d.message || 'Access denied'
+                            });
+                        }
+                    });
                 };
 
                 if (window.hasOwnProperty('openIdPopup') && !window.openIdPopup.closed) {
@@ -356,7 +361,8 @@ function($q) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-            this.login.begin(credentials, this.authUrl, deferred);return deferred.promise;
+            this.login.begin(credentials, this.authUrl, deferred);
+            return deferred.promise;
         },
 
         cancelLogin: function() {

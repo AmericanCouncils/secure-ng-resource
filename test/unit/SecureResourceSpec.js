@@ -36,7 +36,7 @@ describe('SecureResource', function () {
                 // Header added by session
                 Authorization: 'foo'
             }
-        ).respond({'name': 'whatsit'});
+        ).respond([{'name': 'whatsit'}]);
         resource.query();
         $httpBackend.flush();
     });

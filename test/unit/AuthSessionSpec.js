@@ -3,13 +3,13 @@
 describe('AuthSession', function () {
     beforeEach(module('secureNgResource'));
 
-    var $scope, $httpBackend, sessionFactory, ses, auth, loc, timeout, q;
-    beforeEach(inject(function ($rootScope, $injector, authSession, $location, $timeout, $q) {
+    var $scope, $httpBackend, sessionFactory, ses, auth, loc, timeout, q, cookieStore;
+    beforeEach(inject(function ($rootScope, $injector, authSession, $location, $timeout, $q, $cookieStore) {
         $scope = $rootScope.$new();
         $httpBackend = $injector.get('$httpBackend');
 
         auth = {
-            getAuthType: function() { return "mockAuth"; },
+            getAuthType: function() { return "spyAuth"; },
             checkLoginResult: {
                 status: 'accepted',
                 newState: { user: 'someone' }
@@ -58,6 +58,7 @@ describe('AuthSession', function () {
 
         timeout = $timeout;
         q = $q;
+        cookieStore = $cookieStore;
     }));
 
     afterEach(function() {
@@ -68,12 +69,28 @@ describe('AuthSession', function () {
     it('has the correct initial state by default', function() {
         expect(ses.getUserName()).toBeUndefined();
         expect(ses.loggedIn()).toEqual(false);
-        expect(ses.cookieKey()).toEqual('angular-mockAuth');
+        expect(ses.cookieKey()).toEqual('angular-spyAuth');
     });
 
     it('can use a custom cookie key', function () {
         var ses2 = sessionFactory(auth, {sessionName: 'foo'});
-        expect(ses2.cookieKey()).toEqual('foo-mockAuth');
+        expect(ses2.cookieKey()).toEqual('foo-spyAuth');
+    });
+
+    it('caches and retrieves session state with a cookie', function () {
+        expect(cookieStore.get('foo-spyAuth')).toBeUndefined();
+        var ses2 = sessionFactory(auth, {sessionName: 'foo'});
+        ses2.login({}); // spyAuth doesn't actually need any credentials
+        $scope.$apply();
+        var ses2cookie = cookieStore.get('foo-spyAuth');
+        console.log(ses2cookie);
+        expect(ses2cookie.user).toEqual('someone');
+
+        ses2cookie.user = 'someone_else';
+        cookieStore.put('foo-spyAuth', ses2cookie);
+        var ses2redux = sessionFactory(auth, {sessionName: 'foo'});
+        ses2redux.login({});
+        expect(ses2redux.getUserName()).toEqual('someone_else');
     });
 
     it('accepts logins which the authenticator approves', function() {

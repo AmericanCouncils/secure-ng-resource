@@ -8,7 +8,8 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         sessionName: 'angular',
         loginPath: '/login',
         logoutUrl: null,
-        defaultPostLoginPath: '/'
+        defaultPostLoginPath: '/',
+        useCookies: true
     };
 
     var sessionDictionary = {};
@@ -27,9 +28,14 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         this.refreshPromise = null;
 
         sessionDictionary[this.cookieKey()] = this;
-        var cookie = $cookieStore.get(this.cookieKey());
-        if (cookie) {
-            this.state = cookie;
+
+        if (this.settings.useCookies) {
+            var cookie = $cookieStore.get(this.cookieKey());
+            if (cookie) {
+                this.state = cookie;
+            } else {
+                this.reset();
+            }
         } else {
             this.reset();
         }
@@ -157,7 +163,10 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             this.reupdateManagedRequestConfs();
 
             if (this.state !== null) {
-                $cookieStore.put(this.cookieKey(), this.state);
+                if (this.settings.useCookies) {
+                    $cookieStore.put(this.cookieKey(), this.state);
+                }
+
                 if (this.refreshPromise !== null) {
                     $timeout.cancel(this.refreshPromise);
                 }
@@ -173,7 +182,10 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
                     $timeout.cancel(this.refreshPromise);
                     this.refreshPromise = null;
                 }
-                $cookieStore.remove(this.cookieKey());
+
+                if (this.settings.useCookies) {
+                    $cookieStore.remove(this.cookieKey());
+                }
             }
         }
     };

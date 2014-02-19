@@ -80,10 +80,9 @@ describe('AuthSession', function () {
     it('caches and retrieves session state with a cookie', function () {
         expect(cookieStore.get('foo-spyAuth')).toBeUndefined();
         var ses2 = sessionFactory(auth, {sessionName: 'foo'});
-        ses2.login({}); // spyAuth doesn't actually need any credentials
+        ses2.login({});
         $scope.$apply();
         var ses2cookie = cookieStore.get('foo-spyAuth');
-        console.log(ses2cookie);
         expect(ses2cookie.user).toEqual('someone');
 
         ses2cookie.user = 'someone_else';
@@ -91,6 +90,26 @@ describe('AuthSession', function () {
         var ses2redux = sessionFactory(auth, {sessionName: 'foo'});
         ses2redux.login({});
         expect(ses2redux.getUserName()).toEqual('someone_else');
+    });
+
+    it('will not save cookies if useCookies setting disabled', function () {
+        var ses2 = sessionFactory(auth, {sessionName: 'foo', useCookies: false});
+        ses2.login({}); // spyAuth doesn't actually need any credentials
+        $scope.$apply();
+        var ses2cookie = cookieStore.get('foo-spyAuth');
+        expect(ses2cookie).toBeUndefined();
+    });
+
+    it('loads state frome cookies by default', function () {
+        cookieStore.put('foo-spyAuth', {user: 'alice'});
+        var ses2 = sessionFactory(auth, {sessionName: 'foo'});
+        expect(ses2.loggedIn()).toEqual(true);
+    });
+
+    it('will not load state from cookies if useCookies setting disabled', function () {
+        cookieStore.put('foo-spyAuth', {user: 'alice'});
+        var ses2 = sessionFactory(auth, {sessionName: 'foo', useCookies: false});
+        expect(ses2.loggedIn()).toEqual(false);
     });
 
     it('accepts logins which the authenticator approves', function() {

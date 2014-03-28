@@ -24,7 +24,6 @@ function($q, $rootScope) {
                 // on the auth server to provide a page that calls
                 // window.opener.handleAuthResponse. Somehow...
                 // TODO: Deal with cross-frame cross-origin problems
-                // TODO: Test on IE
                 window.handleAuthResponse = function(d) {
                     $rootScope.$apply(function() {
                         cleanUp();
@@ -69,7 +68,6 @@ function($q, $rootScope) {
                 var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
                 var popup = window.open('', 'openid_popup', opts);
                 popup.onclose = function() { cleanUp(); };
-                popup.onbeforeunload = function() { cleanUp(); };
                 popup.document.write(
                     '<form id="shimform"' +
                     ' method="post"' +

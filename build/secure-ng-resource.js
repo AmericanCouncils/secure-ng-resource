@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 02/19/2014 12:14
+* Compiled At: 03/28/2014 11:34
 ***********************************************/
 (function(window) {
 'use strict';
@@ -335,7 +335,6 @@ function($q, $rootScope) {
                 var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
                 var popup = window.open('', 'openid_popup', opts);
                 popup.onclose = function() { cleanUp(); };
-                popup.onbeforeunload = function() { cleanUp(); };
                 popup.document.write(
                     '<form id="shimform"' +
                     ' method="post"' +

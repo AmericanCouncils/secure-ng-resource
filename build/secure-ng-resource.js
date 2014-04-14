@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/14/2014 13:18
+* Compiled At: 04/14/2014 13:19
 ***********************************************/
 (function(window) {
 'use strict';

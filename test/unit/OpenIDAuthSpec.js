@@ -143,12 +143,12 @@ describe('OpenIDAuth', function () {
         expect(httpConf.headers.Authorization).toEqual('SesID xyz');
     });
 
-    it('only treats res 401/403 HTTP responses as auth fails', function () {
+    it('only treats res 401 HTTP responses as auth fails', function () {
         expect(auth.checkResponse({status: 200}).authFailure).toBeFalsy();
         expect(auth.checkResponse({status: 400}).authFailure).toBeFalsy();
         expect(auth.checkResponse({status: 401}).authFailure).toBeTruthy();
         expect(auth.checkResponse({status: 402}).authFailure).toBeFalsy();
-        expect(auth.checkResponse({status: 403}).authFailure).toBeTruthy();
+        expect(auth.checkResponse({status: 403}).authFailure).toBeFalsy();
         expect(auth.checkResponse({status: 404}).authFailure).toBeFalsy();
         expect(auth.checkResponse({status: 500}).authFailure).toBeFalsy();
     });

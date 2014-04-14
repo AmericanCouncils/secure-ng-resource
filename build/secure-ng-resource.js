@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/14/2014 13:16
+* Compiled At: 04/14/2014 13:18
 ***********************************************/
 (function(window) {
 'use strict';
@@ -262,7 +262,7 @@ function($q) {
 
         checkResponse: function (response) {
             var authResult = {};
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) {
                 authResult.authFailure = true;
             }
             return authResult;
@@ -387,7 +387,7 @@ function($q, $rootScope) {
 
         checkResponse: function (response) {
             var authResult = {};
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) {
                 authResult.authFailure = true;
             }
             return authResult;

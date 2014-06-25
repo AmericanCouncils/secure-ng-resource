@@ -22,8 +22,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             settings
         );
 
-        this.priorPath = null;
-        this.state = null;
+        this.state = {};
         this.managedHttpConfs = [];
         this.refreshPromise = null;
 
@@ -50,21 +49,22 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
 
         loggedIn: function () {
             // TODO Check for timeout
-            return this.state !== null;
+            return !!(this.state && this.state.user);
         },
 
         login: function (credentials) {
             var me = this;
             return this.auth.checkLogin(credentials).then(function(result) {
+                var tgt = me.settings.defaultPostLoginPath;
+                if (me.state.priorPath) { tgt = me.state.priorPath; }
+
                 me.state = result.newState;
                 // FIXME This is silly
-                if (me.state !== null && !('user' in me.state)) {
+                if (!('user' in me.state)) {
                     me.state.user = credentials.user;
                 }
                 me._onStateChange();
 
-                var tgt = me.settings.defaultPostLoginPath;
-                if (me.priorPath !== null) { tgt = me.priorPath; }
                 $location.path(tgt).replace();
             });
         },
@@ -84,7 +84,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
                 var origUser = me.state.user;
                 me.state = result.newState;
                 // FIXME This is silly
-                if (me.state !== null && !('user' in me.state)) {
+                if (!('user' in me.state)) {
                     me.state.user = origUser;
                 }
                 me._onStateChange();
@@ -113,7 +113,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         },
 
         reset: function () {
-            this.state = null;
+            this.state = {};
             this._onStateChange();
         },
 
@@ -151,7 +151,8 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             var authResult = this.auth.checkResponse(response);
             if (authResult.authFailure) {
                 this.reset();
-                this.priorPath = $location.path();
+                this.state.priorPath = $location.path();
+                this._onStateChange();
                 $location.path(this.settings.loginPath).replace();
                 return $q.reject(response);
             } else {
@@ -162,7 +163,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         _onStateChange: function() {
             this.reupdateManagedRequestConfs();
 
-            if (this.state !== null) {
+            if (this.state.user) {
                 if (this.settings.useCookies) {
                     $cookieStore.put(this.cookieKey(), this.state);
                 }

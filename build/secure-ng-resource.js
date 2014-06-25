@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 04/14/2014 13:19
+* Compiled At: 06/25/2014 16:37
 ***********************************************/
 (function(window) {
 'use strict';
@@ -35,8 +35,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             settings
         );
 
-        this.priorPath = null;
-        this.state = null;
+        this.state = {};
         this.managedHttpConfs = [];
         this.refreshPromise = null;
 
@@ -61,19 +60,20 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             }
         },
 
-        loggedIn: function () {return this.state !== null;
+        loggedIn: function () {return !!(this.state && this.state.user);
         },
 
         login: function (credentials) {
             var me = this;
             return this.auth.checkLogin(credentials).then(function(result) {
-                me.state = result.newState;if (me.state !== null && !('user' in me.state)) {
+                var tgt = me.settings.defaultPostLoginPath;
+                if (me.state.priorPath) { tgt = me.state.priorPath; }
+
+                me.state = result.newState;if (!('user' in me.state)) {
                     me.state.user = credentials.user;
                 }
                 me._onStateChange();
 
-                var tgt = me.settings.defaultPostLoginPath;
-                if (me.priorPath !== null) { tgt = me.priorPath; }
                 $location.path(tgt).replace();
             });
         },
@@ -88,7 +88,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             }var me = this;
             return this.auth.refreshLogin(this.state).then(function(result) {
                 var origUser = me.state.user;
-                me.state = result.newState;if (me.state !== null && !('user' in me.state)) {
+                me.state = result.newState;if (!('user' in me.state)) {
                     me.state.user = origUser;
                 }
                 me._onStateChange();
@@ -114,7 +114,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         },
 
         reset: function () {
-            this.state = null;
+            this.state = {};
             this._onStateChange();
         },
 
@@ -152,7 +152,8 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             var authResult = this.auth.checkResponse(response);
             if (authResult.authFailure) {
                 this.reset();
-                this.priorPath = $location.path();
+                this.state.priorPath = $location.path();
+                this._onStateChange();
                 $location.path(this.settings.loginPath).replace();
                 return $q.reject(response);
             } else {
@@ -163,7 +164,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         _onStateChange: function() {
             this.reupdateManagedRequestConfs();
 
-            if (this.state !== null) {
+            if (this.state.user) {
                 if (this.settings.useCookies) {
                     $cookieStore.put(this.cookieKey(), this.state);
                 }
@@ -281,88 +282,12 @@ function($q) {
 
 'use strict';
 
-
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$q', '$rootScope',
-function($q, $rootScope) {
-    var loginModes = {popup: {
-            begin: function(credentials, authUrl, deferred) {
-                var cleanUp = function() {
-                    delete window.handleAuthResponse;
-                    delete window.openIdPopup;
-                };window.handleAuthResponse = function(d) {
-                    $rootScope.$apply(function() {
-                        cleanUp();
-
-                        if (d.approved) {
-                            deferred.resolve({
-                                status: 'accepted',
-                                newState: {
-                                    sessionId: d.sessionId,
-                                    user: d.user || undefined
-                                }
-                            });
-                        } else {
-                            deferred.reject({
-                                status: 'denied',
-                                msg: d.message || 'Access denied'
-                            });
-                        }
-                    });
-                };
-
-                if (window.hasOwnProperty('openIdPopup') && !window.openIdPopup.closed) {
-                    window.openIdPopup.close();
-                    cleanUp();
-                }
-
-                if (typeof credentials.query === 'object') {
-                    authUrl += '?';
-                    var first = true;
-                    angular.forEach(credentials.query, function(value, key) {
-                        if (first) {
-                            first = false;
-                        } else {
-                            authUrl += '&';
-                        }
-                        authUrl += encodeURIComponent(key);
-                        authUrl += '=';
-                        authUrl += encodeURIComponent(value);
-                    });
-                }
-
-                var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
-                var popup = window.open('', 'openid_popup', opts);
-                popup.onclose = function() { cleanUp(); };
-                popup.document.write(
-                    '<form id="shimform"' +
-                    ' method="post"' +
-                    ' action="' + authUrl + '">' +
-                    '<input type="hidden" name="openid_identifier" id="oid" />' +
-                    '</form>'
-                );
-                popup.document.getElementById('oid').value =
-                    credentials['openid_identifier'];
-                popup.document.getElementById('shimform').submit();
-                window.openIdPopup = popup;
-            },
-            cancel: function() {
-                if (window.hasOwnProperty('openIdPopup')) {
-                    window.openIdPopup.close();
-                    delete window.openIdPopup;
-                    delete window.handleAuthResponse;
-                }
-            }
-        }
-    };
-
-    var OpenIDAuth = function (authUrl, loginMode) {
+'$q', '$rootScope', '$http', '$cookieStore', '$document', 'simpleCrypt',
+function($q, $rootScope, $http, $cookieStore, $document, simpleCrypt) {
+    var OpenIDAuth = function (authUrl) {
         this.authUrl = authUrl;
-        this.login = loginModes[loginMode];
-        if (!this.login) {
-            throw 'Invalid login mode';
-        }
     };
 
     OpenIDAuth.prototype = {
@@ -372,12 +297,66 @@ function($q, $rootScope) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-            this.login.begin(credentials, this.authUrl, deferred);
+
+            if (credentials.openid_identifier) {var newKey = simpleCrypt.generateKey();
+                $http({
+                    method: 'POST',
+                    url: this.authUrl,
+                    data: {
+                        openid_identifer: credentials.openid_identifier,
+                        key: newKey,
+                        target_url: $document.location.href
+                    }
+                }).then(function (response) {
+                    if (response.data.redirect_url) {
+                        $cookieStore.put('login-key', {key: newKey});
+                        $document.location.href = response.data.redirect_url;
+                    } else {
+                        deferred.reject({
+                            status: 'error',
+                            msg: response.data.message || 'Invalid response from OpenID entry point'
+                        });
+                    }
+                }).catch(function () {
+                    deferred.reject({
+                        status: 'error',
+                        msg: 'Error while connecting to OpenID entry point'
+                    });
+                });
+            } else if (credentials.oid_resp) {var keyData = $cookieStore.get('login-key');
+                if (!keyData) {
+                    deferred.reject({
+                        status: 'error',
+                        msg: 'Local decryption key not found'
+                    });
+                } else {
+                    var key = keyData.key;
+                    var resp = JSON.parse(atob(credentials.oid_resp));
+                    $cookieStore.remove('login-key');
+                    if (resp.approved) {
+                        deferred.resolve({
+                            status: 'accepted',
+                            newState: {
+                                sessionId: simpleCrypt.apply(resp.sessionId, key),
+                                user: resp.user || undefined
+                            }
+                        });
+                    } else {
+                        deferred.reject({
+                            status: 'denied',
+                            msg: resp.message || 'Access Denied'
+                        });
+                    }
+                }
+            } else {
+                throw 'Require openid_identifier in credentials';
+            }
+
             return deferred.promise;
         },
 
         cancelLogin: function() {
-            loginModes.popup.cancel();
+            $cookieStore.remove('login-key');
         },
 
         refreshLogin: function() {var deferred = $q.defer();
@@ -559,6 +538,32 @@ function($resource) {
         return res;
     };
 }]);
+
+'use strict';
+
+angular.module('secureNgResource')
+.value('simpleCrypt', {
+    generateKey: function() {
+        var key = '';
+        while (key.length < 64) {
+            key += String.fromCharCode(Math.floor(Math.random() * 255));
+        }
+        return base64.encode(key);
+    },
+
+    apply: function(value, key) {
+        key = base64.decode(key);
+        var out = '';
+        for (var i = 0; i < value.length; ++i) {
+            if (i < key.length) {
+                var chr = value.charCodeAt(i) ^ key.charCodeAt(i);out += String.fromCharCode(chr);
+            } else {
+                out += value.charAt(i);
+            }
+        }
+        return out;
+    }
+});
 
 'use strict';
 

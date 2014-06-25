@@ -1,101 +1,11 @@
 'use strict';
 
-
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$q', '$rootScope',
-function($q, $rootScope) {
-    var loginModes = {
-        // ###
-        // ### Pop-up login window mode
-        // ###
-        // No-refresh OpenID approach based on Brian Ellin's:
-        // http://openid-demo.appspot.com/
-        // Which was based in turn on a post by Luke Shepard:
-        // http://www.sociallipstick.com/?p=86
-        popup: {
-            begin: function(credentials, authUrl, deferred) {
-                var cleanUp = function() {
-                    delete window.handleAuthResponse;
-                    delete window.openIdPopup;
-                };
-
-                // TODO: Supply the receiver handler ourselves instead of relying
-                // on the auth server to provide a page that calls
-                // window.opener.handleAuthResponse. Somehow...
-                // TODO: Deal with cross-frame cross-origin problems
-                window.handleAuthResponse = function(d) {
-                    $rootScope.$apply(function() {
-                        cleanUp();
-
-                        if (d.approved) {
-                            deferred.resolve({
-                                status: 'accepted',
-                                newState: {
-                                    sessionId: d.sessionId,
-                                    user: d.user || undefined
-                                }
-                            });
-                        } else {
-                            deferred.reject({
-                                status: 'denied',
-                                msg: d.message || 'Access denied'
-                            });
-                        }
-                    });
-                };
-
-                if (window.hasOwnProperty('openIdPopup') && !window.openIdPopup.closed) {
-                    window.openIdPopup.close();
-                    cleanUp();
-                }
-
-                if (typeof credentials.query === 'object') {
-                    authUrl += '?';
-                    var first = true;
-                    angular.forEach(credentials.query, function(value, key) {
-                        if (first) {
-                            first = false;
-                        } else {
-                            authUrl += '&';
-                        }
-                        authUrl += encodeURIComponent(key);
-                        authUrl += '=';
-                        authUrl += encodeURIComponent(value);
-                    });
-                }
-
-                var opts = 'width=450,height=500,location=1,status=1,resizable=yes';
-                var popup = window.open('', 'openid_popup', opts);
-                popup.onclose = function() { cleanUp(); };
-                popup.document.write(
-                    '<form id="shimform"' +
-                    ' method="post"' +
-                    ' action="' + authUrl + '">' +
-                    '<input type="hidden" name="openid_identifier" id="oid" />' +
-                    '</form>'
-                );
-                popup.document.getElementById('oid').value =
-                    credentials['openid_identifier'];
-                popup.document.getElementById('shimform').submit();
-                window.openIdPopup = popup;
-            },
-            cancel: function() {
-                if (window.hasOwnProperty('openIdPopup')) {
-                    window.openIdPopup.close();
-                    delete window.openIdPopup;
-                    delete window.handleAuthResponse;
-                }
-            }
-        }
-    };
-
-    var OpenIDAuth = function (authUrl, loginMode) {
+'$q', '$rootScope', '$http', '$cookieStore', '$document', 'simpleCrypt',
+function($q, $rootScope, $http, $cookieStore, $document, simpleCrypt) {
+    var OpenIDAuth = function (authUrl) {
         this.authUrl = authUrl;
-        this.login = loginModes[loginMode];
-        if (!this.login) {
-            throw 'Invalid login mode';
-        }
     };
 
     OpenIDAuth.prototype = {
@@ -105,12 +15,70 @@ function($q, $rootScope) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-            this.login.begin(credentials, this.authUrl, deferred);
+
+            if (credentials.openid_identifier) {
+                // Phase 1 : being redirected to identifier login page
+                var newKey = simpleCrypt.generateKey();
+                $http({
+                    method: 'POST',
+                    url: this.authUrl,
+                    data: {
+                        openid_identifer: credentials.openid_identifier,
+                        key: newKey,
+                        target_url: $document.location.href
+                    }
+                }).then(function (response) {
+                    if (response.data.redirect_url) {
+                        $cookieStore.put('login-key', {key: newKey});
+                        $document.location.href = response.data.redirect_url;
+                    } else {
+                        deferred.reject({
+                            status: 'error',
+                            msg: response.data.message || 'Invalid response from OpenID entry point'
+                        });
+                    }
+                }).catch(function () {
+                    deferred.reject({
+                        status: 'error',
+                        msg: 'Error while connecting to OpenID entry point'
+                    });
+                });
+            } else if (credentials.oid_resp) {
+                // Phase 2 : parsing authentication response from app server
+                var keyData = $cookieStore.get('login-key');
+                if (!keyData) {
+                    deferred.reject({
+                        status: 'error',
+                        msg: 'Local decryption key not found'
+                    });
+                } else {
+                    var key = keyData.key;
+                    var resp = JSON.parse(atob(credentials.oid_resp));
+                    $cookieStore.remove('login-key');
+                    if (resp.approved) {
+                        deferred.resolve({
+                            status: 'accepted',
+                            newState: {
+                                sessionId: simpleCrypt.apply(resp.sessionId, key),
+                                user: resp.user || undefined
+                            }
+                        });
+                    } else {
+                        deferred.reject({
+                            status: 'denied',
+                            msg: resp.message || 'Access Denied'
+                        });
+                    }
+                }
+            } else {
+                throw 'Require openid_identifier in credentials';
+            }
+
             return deferred.promise;
         },
 
         cancelLogin: function() {
-            loginModes.popup.cancel();
+            $cookieStore.remove('login-key');
         },
 
         refreshLogin: function(/*state*/) {

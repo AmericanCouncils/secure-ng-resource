@@ -2,8 +2,8 @@
 
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$q', '$rootScope', '$http', '$cookieStore', '$document', 'simpleCrypt',
-function($q, $rootScope, $http, $cookieStore, $document, simpleCrypt) {
+'$q', '$rootScope', '$cookieStore', 'shimFormSubmitter', 'simpleCrypt', '$location',
+function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location) {
     var OpenIDAuth = function (authUrl) {
         this.authUrl = authUrl;
     };
@@ -19,29 +19,11 @@ function($q, $rootScope, $http, $cookieStore, $document, simpleCrypt) {
             if (credentials.openid_identifier) {
                 // Phase 1 : being redirected to identifier login page
                 var newKey = simpleCrypt.generateKey();
-                $http({
-                    method: 'POST',
-                    url: this.authUrl,
-                    data: {
-                        openid_identifer: credentials.openid_identifier,
-                        key: newKey,
-                        target_url: $document.location.href
-                    }
-                }).then(function (response) {
-                    if (response.data.redirect_url) {
-                        $cookieStore.put('login-key', {key: newKey});
-                        $document.location.href = response.data.redirect_url;
-                    } else {
-                        deferred.reject({
-                            status: 'error',
-                            msg: response.data.message || 'Invalid response from OpenID entry point'
-                        });
-                    }
-                }).catch(function () {
-                    deferred.reject({
-                        status: 'error',
-                        msg: 'Error while connecting to OpenID entry point'
-                    });
+                $cookieStore.put('login-key', {key: newKey});
+                shimFormSubmitter.submit(this.authUrl, {
+                    openid_identifer: credentials.openid_identifier,
+                    key: newKey,
+                    target_url: $location.absUrl()
                 });
             } else if (credentials.oid_resp) {
                 // Phase 2 : parsing authentication response from app server

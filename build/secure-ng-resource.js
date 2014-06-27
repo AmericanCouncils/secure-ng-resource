@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/25/2014 16:37
+* Compiled At: 06/27/2014 12:13
 ***********************************************/
 (function(window) {
 'use strict';
@@ -284,8 +284,8 @@ function($q) {
 
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$q', '$rootScope', '$http', '$cookieStore', '$document', 'simpleCrypt',
-function($q, $rootScope, $http, $cookieStore, $document, simpleCrypt) {
+'$q', '$rootScope', '$cookieStore', 'shimFormSubmitter', 'simpleCrypt', '$location',
+function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location) {
     var OpenIDAuth = function (authUrl) {
         this.authUrl = authUrl;
     };
@@ -299,29 +299,11 @@ function($q, $rootScope, $http, $cookieStore, $document, simpleCrypt) {
             var deferred = $q.defer();
 
             if (credentials.openid_identifier) {var newKey = simpleCrypt.generateKey();
-                $http({
-                    method: 'POST',
-                    url: this.authUrl,
-                    data: {
-                        openid_identifer: credentials.openid_identifier,
-                        key: newKey,
-                        target_url: $document.location.href
-                    }
-                }).then(function (response) {
-                    if (response.data.redirect_url) {
-                        $cookieStore.put('login-key', {key: newKey});
-                        $document.location.href = response.data.redirect_url;
-                    } else {
-                        deferred.reject({
-                            status: 'error',
-                            msg: response.data.message || 'Invalid response from OpenID entry point'
-                        });
-                    }
-                }).catch(function () {
-                    deferred.reject({
-                        status: 'error',
-                        msg: 'Error while connecting to OpenID entry point'
-                    });
+                $cookieStore.put('login-key', {key: newKey});
+                shimFormSubmitter.submit(this.authUrl, {
+                    openid_identifer: credentials.openid_identifier,
+                    key: newKey,
+                    target_url: $location.absUrl()
                 });
             } else if (credentials.oid_resp) {var keyData = $cookieStore.get('login-key');
                 if (!keyData) {
@@ -536,6 +518,26 @@ function($resource) {
         var res = $resource(url, paramDefaults, fullActions);
 
         return res;
+    };
+}]);
+
+'use strict';
+
+angular.module('secureNgResource')
+.service('shimFormSubmitter', [
+'$document',
+function($document) {
+    this.submit = function(url, fields) {
+        var form = '';
+        form += '<form style="display: none" id="shimform" method="post" action="' + url + '">';
+        angular.forEach(fields, function(value, key) {
+            form += '<input type="hidden" ';
+            form += 'name="' + encodeURIComponent(key) + '" ';
+            form += 'value="' + encodeURIComponent(value) + '" />';
+        });
+        form += '</form>';
+        $document.write(form);
+        $document.getElementById('shimform').submit();
     };
 }]);
 

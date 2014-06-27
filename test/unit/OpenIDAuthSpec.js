@@ -3,73 +3,54 @@
 describe('OpenIDAuth', function () {
     beforeEach(module('secureNgResource'));
 
-    var mockDoc;
+    var mockFormSubmitter;
     beforeEach(function () {
         module(function($provide) {
-            mockDoc = { location: { href: "foo" } };
-            $provide.value('$document', mockDoc);
+            mockFormSubmitter = jasmine.createSpyObj('ShimFormSubmitter', ['submit']);
+            $provide.value('shimFormSubmitter', mockFormSubmitter);
         });
     });
 
-    var $scope, $httpBackend, simpleCrypt, auth;
+    var $scope, simpleCrypt, auth;
     beforeEach(inject(function ($rootScope, $injector, openIDAuth) {
         $scope = $rootScope.$new();
-        $httpBackend = $injector.get('$httpBackend');
         simpleCrypt = $injector.get('simpleCrypt');
         auth = openIDAuth('https://example.com/openid_begin');
     }));
-
-    afterEach(function() {
-        $httpBackend.verifyNoOutstandingExpectation();
-        $httpBackend.verifyNoOutstandingRequest();
-    });
 
     it('returns the correct auth type', function () {
         expect(auth.getAuthType()).toEqual('OpenIDAuth');
     });
 
     describe('Phase One', function () {
-        it('begins OpenID requests with a redirect, not resolving promise', function () {
+        it('begins OpenID requests correctly', function () {
             var handler = jasmine.createSpy('handler');
             auth.checkLogin({openid_identifier: 'foo'}).then(handler, handler);
-            $httpBackend.expectPOST('https://example.com/openid_begin')
-                .respond({ redirect_url: 'https://identity.org/login' });
-            $httpBackend.flush();
-            expect(mockDoc.location.href).toEqual('https://identity.org/login');
-            expect(handler).not.toHaveBeenCalled();
-        });
-
-        it('rejects requests correctly on lack of redirect url', function () {
-            var handler = jasmine.createSpy('handler');
-            auth.checkLogin({openid_identifier: 'foo'}).then(null, handler);
-            $httpBackend.expectPOST('https://example.com/openid_begin')
-                .respond({ message: 'Go away' });
-            $httpBackend.flush();
-            expect(handler).toHaveBeenCalledWith({
-                status: 'error',
-                msg: 'Go away'
+            mockFormSubmitter.submit.andCallFake(function(url, fields) {
+                expect(url).toEqual('https://example.com/openid_begin');
+                expect(fields.openid_identifier).toEqual('foo');
+                expect(fields.key).toEqual(jasmine.any(String)); // TODO: More specific test
+                expect(fields.target_url).toEqual(jasmine.any(String)); // TODO: More specific test
             });
+            $scope.$apply();
+            expect(mockFormSubmitter.submit).toHaveBeenCalled();
+            expect(handler).not.toHaveBeenCalled();
         });
     });
 
     describe('Phase Two', function () {
-        var phaseOneKey;
-        beforeEach(function() {
-            phaseOneKey = '';
-            auth.checkLogin({openid_identifier: 'foo'});
-            $httpBackend.expectPOST('https://example.com/openid_begin', function(data) {
-                data = JSON.parse(data);
-                if (data.key) {
-                    phaseOneKey = data.key;
-                    return true;
-                }
-                return false;
-            }).respond({ redirect_url: 'foo' });
-            $httpBackend.flush();
-            expect(phaseOneKey).not.toEqual('');
-        });
-
         function phaseTwoResponse(obj) {
+            // Pretend that we have gone through phase one already
+            var key = '';
+            mockFormSubmitter.submit.andCallFake(function(url, fields) {
+                key = fields.key;
+            });
+            auth.checkLogin({openid_identifier: 'foo'});
+            $scope.$apply();
+            expect(key).not.toEqual('');
+            if (obj.sessionId) {
+                obj.sessionId = simpleCrypt.apply(obj.sessionId, key);
+            }
             return auth.checkLogin({oid_resp: btoa(JSON.stringify(obj))});
         }
 
@@ -77,7 +58,7 @@ describe('OpenIDAuth', function () {
             var handler = jasmine.createSpy('handler');
             phaseTwoResponse({
                 approved: true,
-                sessionId: simpleCrypt.apply('letmein', phaseOneKey)
+                sessionId: 'letmein'
             }).then(handler);
             $scope.$apply();
             expect(handler).toHaveBeenCalledWith({
@@ -118,7 +99,7 @@ describe('OpenIDAuth', function () {
             };
             phaseTwoResponse({
                 approved: true,
-                sessionId: simpleCrypt.apply('xyz', phaseOneKey)
+                sessionId: 'xyz'
             }).then(handler);
             $scope.$apply();
 

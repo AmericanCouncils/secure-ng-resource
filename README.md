@@ -103,26 +103,17 @@ The login process goes like so:
    should pass this identifier URL to AuthSession.login() in an object
    under the key 'openid_identifier'.
 
-2. Secure-ng-resource sends a POST request via AJAX to `beginPath` with
-   a JSON object with the following keys:
+2. Secure-ng-resource redirects user to `beginPath` via a POST, submitting
+   the usual OpenID form data plus these additional fields:
 
-   * openid_identifier: The URL of the identity provider to be discovered
    * key: A random byte string, base64 encoded.
-   * target_url: The final URL to return the authentication information to,
-             generally this is the URL for the angular app's login page.
+   * target_url: A URL to go to after authentication completes, generally this
+                 is the URL for the angular app's login page.
 
-   The server should perform discovery on the identifier URL and respond
-   with the following JSON:
-
-   * redirect_url: The URL of the OpenID login page at the provider. The
-                   return URL here should actually be a route handled
-                   by the server, so it can do the additional processing
-                   required by step #4 below.
-
-3. The client will then send the user to the given redirect_url to log in.
+3. The server responds with a redirect to the identity provider login page.
 
 4. When authentication completes, the server will get the response from
-   the OpenID server. It should then redirect to the original target 
+   the OpenID server. It should then redirect back to the original target
    URL from step #2, with the following JSON structure base64 encoded as
    the GET argument `oid_resp`:
 

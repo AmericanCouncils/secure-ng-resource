@@ -36,7 +36,6 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                 } else {
                     var key = keyData.key;
                     var resp = JSON.parse(base64.decode(credentials.auth_resp));
-                    console.log(resp);
                     $cookieStore.remove('login-key');
                     if (resp.approved) {
                         var sesId = base64.decode(resp.sessionId);

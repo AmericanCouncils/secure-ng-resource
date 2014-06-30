@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/30/2014 09:36
+* Compiled At: 06/30/2014 15:13
 ***********************************************/
 (function(window) {
 'use strict';
@@ -313,13 +313,15 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                     });
                 } else {
                     var key = keyData.key;
-                    var resp = JSON.parse(atob(credentials.auth_resp));
+                    var resp = JSON.parse(base64.decode(credentials.auth_resp));
+                    console.log(resp);
                     $cookieStore.remove('login-key');
                     if (resp.approved) {
+                        var sesId = base64.decode(resp.sessionId);
                         deferred.resolve({
                             status: 'accepted',
                             newState: {
-                                sessionId: simpleCrypt.apply(resp.sessionId, key),
+                                sessionId: simpleCrypt.apply(sesId, key),
                                 user: resp.user || undefined
                             }
                         });

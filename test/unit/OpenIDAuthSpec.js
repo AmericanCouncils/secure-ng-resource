@@ -49,7 +49,7 @@ describe('OpenIDAuth', function () {
             $scope.$apply();
             expect(key).not.toEqual('');
             if (obj.sessionId) {
-                obj.sessionId = simpleCrypt.apply(obj.sessionId, key);
+                obj.sessionId = base64.encode(simpleCrypt.apply(obj.sessionId, key));
             }
             return auth.checkLogin({auth_resp: base64.encode(JSON.stringify(obj))});
         }
@@ -58,7 +58,7 @@ describe('OpenIDAuth', function () {
             var handler = jasmine.createSpy('handler');
             phaseTwoResponse({
                 approved: true,
-                sessionId: base64.encode('letmein')
+                sessionId: 'letmein'
             }).then(handler);
             $scope.$apply();
             expect(handler).toHaveBeenCalledWith({
@@ -99,7 +99,7 @@ describe('OpenIDAuth', function () {
             };
             phaseTwoResponse({
                 approved: true,
-                sessionId: base64.encode('xyz')
+                sessionId: 'xyz'
             }).then(handler);
             $scope.$apply();
 

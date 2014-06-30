@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/27/2014 12:13
+* Compiled At: 06/30/2014 09:36
 ***********************************************/
 (function(window) {
 'use strict';
@@ -301,11 +301,11 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
             if (credentials.openid_identifier) {var newKey = simpleCrypt.generateKey();
                 $cookieStore.put('login-key', {key: newKey});
                 shimFormSubmitter.submit(this.authUrl, {
-                    openid_identifer: credentials.openid_identifier,
+                    openid_identifier: credentials.openid_identifier,
                     key: newKey,
                     target_url: $location.absUrl()
                 });
-            } else if (credentials.oid_resp) {var keyData = $cookieStore.get('login-key');
+            } else if (credentials.auth_resp) {var keyData = $cookieStore.get('login-key');
                 if (!keyData) {
                     deferred.reject({
                         status: 'error',
@@ -313,7 +313,7 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                     });
                 } else {
                     var key = keyData.key;
-                    var resp = JSON.parse(atob(credentials.oid_resp));
+                    var resp = JSON.parse(atob(credentials.auth_resp));
                     $cookieStore.remove('login-key');
                     if (resp.approved) {
                         deferred.resolve({
@@ -524,20 +524,29 @@ function($resource) {
 'use strict';
 
 angular.module('secureNgResource')
-.service('shimFormSubmitter', [
+.factory('shimFormSubmitter', [
 '$document',
 function($document) {
-    this.submit = function(url, fields) {
-        var form = '';
-        form += '<form style="display: none" id="shimform" method="post" action="' + url + '">';
-        angular.forEach(fields, function(value, key) {
-            form += '<input type="hidden" ';
-            form += 'name="' + encodeURIComponent(key) + '" ';
-            form += 'value="' + encodeURIComponent(value) + '" />';
-        });
-        form += '</form>';
-        $document.write(form);
-        $document.getElementById('shimform').submit();
+    return {
+        submit: function(url, fields) {
+            var form = angular.element('<form></form>', {
+                id: 'shimform',
+                style: 'display: none',
+                method: 'post',
+                action: url
+            });
+            angular.forEach(fields, function(value, key) {
+                form.prepend(angular.element('<input />', {
+                    type: 'hidden',
+                    name: key,
+                    value: value
+                }));
+            });
+            console.log(form);
+            $document.find('body').append(form);
+
+            document.getElementById('shimform').submit();
+        }
     };
 }]);
 

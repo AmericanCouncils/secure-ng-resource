@@ -25,13 +25,13 @@ describe('OpenIDAuth', function () {
     describe('Phase One', function () {
         it('begins OpenID requests correctly', function () {
             var handler = jasmine.createSpy('handler');
-            auth.checkLogin({openid_identifier: 'foo'}).then(handler, handler);
             mockFormSubmitter.submit.andCallFake(function(url, fields) {
                 expect(url).toEqual('https://example.com/openid_begin');
                 expect(fields.openid_identifier).toEqual('foo');
                 expect(fields.key).toEqual(jasmine.any(String)); // TODO: More specific test
                 expect(fields.target_url).toEqual(jasmine.any(String)); // TODO: More specific test
             });
+            auth.checkLogin({openid_identifier: 'foo'}).then(handler, handler);
             $scope.$apply();
             expect(mockFormSubmitter.submit).toHaveBeenCalled();
             expect(handler).not.toHaveBeenCalled();
@@ -51,14 +51,14 @@ describe('OpenIDAuth', function () {
             if (obj.sessionId) {
                 obj.sessionId = simpleCrypt.apply(obj.sessionId, key);
             }
-            return auth.checkLogin({oid_resp: btoa(JSON.stringify(obj))});
+            return auth.checkLogin({auth_resp: base64.encode(JSON.stringify(obj))});
         }
 
         it('resolves promise correctly on approved logins', function () {
             var handler = jasmine.createSpy('handler');
             phaseTwoResponse({
                 approved: true,
-                sessionId: 'letmein'
+                sessionId: base64.encode('letmein')
             }).then(handler);
             $scope.$apply();
             expect(handler).toHaveBeenCalledWith({
@@ -99,7 +99,7 @@ describe('OpenIDAuth', function () {
             };
             phaseTwoResponse({
                 approved: true,
-                sessionId: 'xyz'
+                sessionId: base64.encode('xyz')
             }).then(handler);
             $scope.$apply();
 

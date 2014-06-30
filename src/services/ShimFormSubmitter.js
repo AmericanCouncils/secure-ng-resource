@@ -1,19 +1,28 @@
 'use strict';
 
 angular.module('secureNgResource')
-.service('shimFormSubmitter', [
+.factory('shimFormSubmitter', [
 '$document',
 function($document) {
-    this.submit = function(url, fields) {
-        var form = '';
-        form += '<form style="display: none" id="shimform" method="post" action="' + url + '">';
-        angular.forEach(fields, function(value, key) {
-            form += '<input type="hidden" ';
-            form += 'name="' + encodeURIComponent(key) + '" ';
-            form += 'value="' + encodeURIComponent(value) + '" />';
-        });
-        form += '</form>';
-        $document.write(form);
-        $document.getElementById('shimform').submit();
+    return {
+        submit: function(url, fields) {
+            var form = angular.element('<form></form>', {
+                id: 'shimform',
+                style: 'display: none',
+                method: 'post',
+                action: url
+            });
+            angular.forEach(fields, function(value, key) {
+                form.prepend(angular.element('<input />', {
+                    type: 'hidden',
+                    name: key,
+                    value: value
+                }));
+            });
+            console.log(form);
+            $document.find('body').append(form);
+
+            document.getElementById('shimform').submit();
+        }
     };
 }]);

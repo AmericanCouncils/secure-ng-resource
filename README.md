@@ -112,13 +112,14 @@ The login process goes like so:
 
 3. The server responds with a redirect to the identity provider login page.
 
-4. When authentication completes, the server will get the response from
-   the OpenID server. It should then redirect back to the original target
+4. When authentication completes, the server redirects to the target
    URL from step #2, with the following JSON structure base64 encoded as
-   the GET argument `oid_resp`:
+   the GET argument `auth_resp`:
 
    * approved: A boolean indicating whether authentication was accepted
    * sessionId: (If approved) An authentication token, XOR'd against the key
+                and then itself base64 encoded
+   * user: (If approved) The username that the user logged in as
    * message: (Optional) An explanation of what happened during authentication
 
 5. Assuming access was allowed, then from that point forward any
@@ -129,11 +130,12 @@ The login process goes like so:
    to prevent XSS attacks.
 
 In order to support step #3 of this process, your login controller should check
-for the `oid_resp` value and pass it to the `login` method if it's present:
+for the `auth_resp` value and pass it to the `login` method if it's present:
 
 ```js
-if ($location.search().oid_resp) {
-    appSession.login({oid_resp: $location.search().oid_resp});
+if ($location.search().auth_resp) {
+    appSession.login({auth_resp: $location.search().auth_resp});
+    $location.search('auth_resp', null);
 }
 ```
 

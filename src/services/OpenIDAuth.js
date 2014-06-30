@@ -21,11 +21,11 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                 var newKey = simpleCrypt.generateKey();
                 $cookieStore.put('login-key', {key: newKey});
                 shimFormSubmitter.submit(this.authUrl, {
-                    openid_identifer: credentials.openid_identifier,
+                    openid_identifier: credentials.openid_identifier,
                     key: newKey,
                     target_url: $location.absUrl()
                 });
-            } else if (credentials.oid_resp) {
+            } else if (credentials.auth_resp) {
                 // Phase 2 : parsing authentication response from app server
                 var keyData = $cookieStore.get('login-key');
                 if (!keyData) {
@@ -35,13 +35,15 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                     });
                 } else {
                     var key = keyData.key;
-                    var resp = JSON.parse(atob(credentials.oid_resp));
+                    var resp = JSON.parse(base64.decode(credentials.auth_resp));
+                    console.log(resp);
                     $cookieStore.remove('login-key');
                     if (resp.approved) {
+                        var sesId = base64.decode(resp.sessionId);
                         deferred.resolve({
                             status: 'accepted',
                             newState: {
-                                sessionId: simpleCrypt.apply(resp.sessionId, key),
+                                sessionId: simpleCrypt.apply(sesId, key),
                                 user: resp.user || undefined
                             }
                         });

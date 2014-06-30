@@ -31,7 +31,7 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                 if (!keyData) {
                     deferred.reject({
                         status: 'error',
-                        msg: 'Local decryption key not found'
+                        msg: 'Login failed, decryption key not found'
                     });
                 } else {
                     var key = keyData.key;

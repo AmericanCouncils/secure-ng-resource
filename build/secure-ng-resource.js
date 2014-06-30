@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/30/2014 15:53
+* Compiled At: 06/30/2014 16:31
 ***********************************************/
 (function(window) {
 'use strict';
@@ -309,7 +309,7 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                 if (!keyData) {
                     deferred.reject({
                         status: 'error',
-                        msg: 'Local decryption key not found'
+                        msg: 'Login failed, decryption key not found'
                     });
                 } else {
                     var key = keyData.key;

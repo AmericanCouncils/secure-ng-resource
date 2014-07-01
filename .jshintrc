@@ -4,7 +4,7 @@
   "es5": false,
   "esnext": true,
   "bitwise": true,
-  "camelcase": true,
+  "camelcase": false,
   "curly": true,
   "eqeqeq": true,
   "immed": true,
@@ -22,6 +22,7 @@
   "white": false,
   "sub": true,
   "globals": {
-    "angular": false
+    "angular": false,
+    "base64": false
   }
 }

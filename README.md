@@ -6,6 +6,9 @@ A wrapper around ngResource that adds authentication to requests, automatically
 asking the user for credentials when needed. Currently supports OAuth password
 flow, and OpenID verification with an Authorization header to pass the key.
 
+The `ArrayBuffer` javascript type is required; for IE versions 9 and below,
+you will need to provide a polyfill for it.
+
 ## Installation
 
 After you've downloaded the secure-ng-resource component with bower, add the
@@ -99,26 +102,42 @@ The login process goes like so:
 1. The user supplies an OpenID identifier as their credentials. You
    should pass this identifier URL to AuthSession.login() in an object
    under the key 'openid_identifier'.
-2. Secure-ng-resource sends a POST request via AJAX to `beginPath`, with
-   form encoding, containing the identifier URL under the name
-   'openid_identifier'. The server should discover the provider
-   at that identifier and respond with a redirect to the provider,
-   as per normal OpenID protocol.
-3. The return address must eventually lead to a page that executes the
-   Javascript code `window.opener.handleAuthResponse(j);window.close();`
-   where j is an object with a boolean key `approved`. If `approved` is
-   true, then there needs to be another key `sessionId` which will
-   be used to authenticate the user from then on. If `approved` is false,
-   for example because the user needs to be pre-recognized by the server
-   even if their OpenId is valid, then you can optionally add a `message`
-   key explaining why access was denied.
-4. Assuming access was allowed, then from that point forward any
+
+2. Secure-ng-resource redirects user to `beginPath` via a POST, submitting
+   the usual OpenID form data plus these additional fields:
+
+   * key: A random byte string, base64 encoded.
+   * target_url: A URL to go to after authentication completes, generally this
+                 is the URL for the angular app's login page.
+
+3. The server responds with a redirect to the identity provider login page.
+
+4. When authentication completes, the server redirects to the target
+   URL from step #2, with the following JSON structure base64 encoded as
+   the GET argument `auth_resp`:
+
+   * approved: A boolean indicating whether authentication was accepted
+   * sessionId: (If approved) An authentication token, XOR'd against the key
+                and then itself base64 encoded
+   * user: (If approved) The username that the user logged in as
+   * message: (Optional) An explanation of what happened during authentication
+
+5. Assuming access was allowed, then from that point forward any
    requests that go through secureNgResource using this
    authentication session will include an `Authorization` header of the
-   form `SesID 123ABC` where `123ABC` is the session id that was given
-   to `handleAuthResponse`. Note that cookies are *not* used in
-   these requests, although the client does keep its own cookie with
-   the session ID cached.
+   form `SesID 123ABC` where `123ABC` is the sessionId from the response
+   object. Note that cookies are *not* used in these requests; this helps
+   to prevent XSS attacks.
+
+In order to support step #3 of this process, your login controller should check
+for the `auth_resp` value and pass it to the `login` method if it's present:
+
+```js
+if ($location.search().auth_resp) {
+    appSession.login({auth_resp: $location.search().auth_resp});
+    $location.search('auth_resp', null);
+}
+```
 
 ## Credits
 

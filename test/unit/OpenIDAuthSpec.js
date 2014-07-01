@@ -3,144 +3,110 @@
 describe('OpenIDAuth', function () {
     beforeEach(module('secureNgResource'));
 
-    var $scope, $httpBackend, auth, fakeInputElement, fakeFormElement, fakeDocument;
+    var mockFormSubmitter;
+    beforeEach(function () {
+        module(function($provide) {
+            mockFormSubmitter = jasmine.createSpyObj('ShimFormSubmitter', ['submit']);
+            $provide.value('shimFormSubmitter', mockFormSubmitter);
+        });
+    });
+
+    var $scope, simpleCrypt, auth;
     beforeEach(inject(function ($rootScope, $injector, openIDAuth) {
         $scope = $rootScope.$new();
-        $httpBackend = $injector.get('$httpBackend');
-
-        auth = openIDAuth('https://example.com/openid_begin', 'popup');
-
-        fakeInputElement = { value: null };
-        fakeFormElement = { submit: function() {} };
-        spyOn(fakeFormElement, 'submit');
-
-        fakeDocument = {
-            getElementById: function(id) {
-                if (id == 'oid') { return fakeInputElement; }
-                if (id == 'shimform') { return fakeFormElement; }
-                throw "Invalid id requested";
-            },
-            write: function() {}
-        };
-        spyOn(fakeDocument, 'write');
-
-        var fakeWindow = { document: fakeDocument };
-        spyOn(window, 'open').andReturn(fakeWindow);
-
-        delete window.handleAuthResponse;
-        delete window.openIdPopup;
+        simpleCrypt = $injector.get('simpleCrypt');
+        auth = openIDAuth('https://example.com/openid_begin');
     }));
-
-    afterEach(function() {
-        $httpBackend.verifyNoOutstandingExpectation();
-        $httpBackend.verifyNoOutstandingRequest();
-    });
 
     it('returns the correct auth type', function () {
         expect(auth.getAuthType()).toEqual('OpenIDAuth');
     });
 
-    it('begins OpenID requests in a popup with a dynamic form', function () {
-        auth.checkLogin({openid_identifier: 'foo'});
-        expect(window.open).toHaveBeenCalledWith(
-            '',
-            'openid_popup',
-            'width=450,height=500,location=1,status=1,resizable=yes'
-        );
-        expect(fakeDocument.write).toHaveBeenCalledWith(
-            '<form id="shimform" method="post" ' +
-            'action="https://example.com/openid_begin">' +
-            '<input type="hidden" name="openid_identifier" id="oid" />' +
-            '</form>'
-        );
-        expect(fakeInputElement.value).toEqual('foo');
-        expect(fakeFormElement.submit).toHaveBeenCalled();
+    describe('Phase One', function () {
+        it('begins OpenID requests correctly', function () {
+            var handler = jasmine.createSpy('handler');
+            mockFormSubmitter.submit.andCallFake(function(url, fields) {
+                expect(url).toEqual('https://example.com/openid_begin');
+                expect(fields.openid_identifier).toEqual('foo');
+                expect(fields.key).toEqual(jasmine.any(String)); // TODO: More specific test
+                expect(fields.target_url).toEqual(jasmine.any(String)); // TODO: More specific test
+            });
+            auth.checkLogin({openid_identifier: 'foo'}).then(handler, handler);
+            $scope.$apply();
+            expect(mockFormSubmitter.submit).toHaveBeenCalled();
+            expect(handler).not.toHaveBeenCalled();
+        });
     });
 
-    it('allows additional GET arguments to be passed to server for OpenID req', function () {
-        auth.checkLogin({openid_identifier: 'foo', query: { bar: 'narf' } });
-        expect(fakeDocument.write).toHaveBeenCalledWith(
-            '<form id="shimform" method="post" ' +
-            'action="https://example.com/openid_begin?bar=narf">' +
-            '<input type="hidden" name="openid_identifier" id="oid" />' +
-            '</form>'
-        );
-    });
+    describe('Phase Two', function () {
+        function phaseTwoResponse(obj) {
+            // Pretend that we have gone through phase one already
+            var key = '';
+            mockFormSubmitter.submit.andCallFake(function(url, fields) {
+                key = fields.key;
+            });
+            auth.checkLogin({openid_identifier: 'foo'});
+            $scope.$apply();
+            expect(key).not.toEqual('');
+            if (obj.sessionId) {
+                obj.sessionId = base64.encode(simpleCrypt.apply(obj.sessionId, key));
+            }
+            return auth.checkLogin({auth_resp: base64.encode(JSON.stringify(obj))});
+        }
 
-    it('creates and cleans up response handler', function () {
-        expect(window.handleAuthResponse).toBeUndefined();
-        auth.checkLogin({openid_identifier: 'foo'});
-        expect(typeof window.handleAuthResponse).toBe('function');
-        window.handleAuthResponse('abc=123');
-        expect(window.handleAuthResponse).toBeUndefined();
-    });
+        it('resolves promise correctly on approved logins', function () {
+            var handler = jasmine.createSpy('handler');
+            phaseTwoResponse({
+                approved: true,
+                sessionId: 'letmein'
+            }).then(handler);
+            $scope.$apply();
+            expect(handler).toHaveBeenCalledWith({
+                status: 'accepted',
+                newState: { sessionId: 'letmein' }
+            });
+        });
 
-    it('resolves promise correctly on approved logins', function () {
-        var handler = jasmine.createSpy('handler');
-        auth.checkLogin({openid_identifier: 'foo'}).then(handler);
-        var d = {approved: true, user: 'bob', sessionId: 'xyz'};
-        window.handleAuthResponse(d);
-        $scope.$apply();
-        expect(handler).toHaveBeenCalledWith({
-            status: 'accepted',
-            newState: { sessionId: 'xyz', user: 'bob' }
-        })
-    });
+        it('rejects promise correctly on denied logins', function () {
+            var handler = jasmine.createSpy('handler');
+            phaseTwoResponse({
+                approved: false,
+                message: "foobar"
+            }).then(null, handler);
+            $scope.$apply();
+            expect(handler).toHaveBeenCalledWith({
+                status: 'denied',
+                msg: 'foobar'
+            });
+        });
 
-    it('rejects promise correctly on denied logins', function () {
-        var handler = jasmine.createSpy('handler');
-        auth.checkLogin({openid_identifier: 'foo'}).then(null, handler);
-        var d = {approved: false, message: 'Foo'};
-        window.handleAuthResponse(d);
-        $scope.$apply();
-        expect(handler).toHaveBeenCalledWith({
-            status: 'denied',
-            msg: 'Foo'
-        })
-    });
+        it('rejects promise with default message on denied logins', function () {
+            var handler = jasmine.createSpy('handler');
+            phaseTwoResponse({
+                approved: false
+            }).then(null, handler);
+            $scope.$apply();
+            expect(handler).toHaveBeenCalledWith({
+                status: 'denied',
+                msg: 'Access Denied'
+            });
+        });
 
-    it('rejects promise with default message on denied logins', function () {
-        var handler = jasmine.createSpy('handler');
-        auth.checkLogin({openid_identifier: 'foo'}).then(null, handler);
-        var d = {approved: false};
-        window.handleAuthResponse(d);
-        $scope.$apply();
-        expect(handler).toHaveBeenCalledWith({
-            status: 'denied',
-            msg: 'Access denied'
-        })
-    });
+        it('adds auth header to res requests', function () {
+            var state = {};
+            var handler = function(result) {
+                state = result.newState;
+            };
+            phaseTwoResponse({
+                approved: true,
+                sessionId: 'xyz'
+            }).then(handler);
+            $scope.$apply();
 
-    // TODO: Somehow can we tell if window.open wasn't able to get to
-    // the target URL? Or if the dialog was closed without handleAuth being
-    // called?
-    /*
-    it('calls handler correctly on HTTP failure', function () {
-        var handler = jasmine.createSpy('handler');
-        auth.checkLogin({openid_identifier: 'foo'}).then(null, handler);
-        $httpBackend.when('GET', 'https://example.com/openid_finish?abc=123').
-            respond(500, "Internal Server Error, Oh Noes");
-        window.handleAuthResponse('abc=123');
-        $httpBackend.flush();
-        $scope.$apply();
-        expect(handler.mostRecentCall.args[0].status).toEqual('error');
-        expect(handler.mostRecentCall.args[0].msg).toMatch(/500/);
-    });
-    */
-
-    it('adds auth header to res requests', function () {
-        var state = {};
-        var handler = function(result) {
-            state = result.newState;
-        };
-        auth.checkLogin({openid_identifier: 'foo'}).then(handler);
-        var d = {approved: true, user: 'bob', sessionId: 'xyz'};
-        window.handleAuthResponse(d);
-        $scope.$apply();
-
-        var httpConf = {headers: {}};
-        auth.addAuthToRequestConf(httpConf, state);
-        expect(httpConf.headers.Authorization).toEqual('SesID xyz');
+            var httpConf = {headers: {}};
+            auth.addAuthToRequestConf(httpConf, state);
+            expect(httpConf.headers.Authorization).toEqual('SesID xyz');
+        });
     });
 
     it('only treats res 401 HTTP responses as auth fails', function () {

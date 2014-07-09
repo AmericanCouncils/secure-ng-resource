@@ -129,7 +129,7 @@ The login process goes like so:
    object. Note that cookies are *not* used in these requests; this helps
    to prevent XSS attacks.
 
-In order to support step #3 of this process, your login controller should check
+In order to support step #4 of this process, your login controller should check
 for the `auth_resp` value and pass it to the `login` method if it's present:
 
 ```js

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/30/2014 16:52
+* Compiled At: 07/22/2014 12:35
 ***********************************************/
 (function(window) {
 'use strict';
@@ -386,6 +386,7 @@ function($http, $q) {
         });
         return s;
     };
+
     var handleTokenResponse = function (response) {
         if (
         response.status === 200 &&
@@ -449,6 +450,8 @@ function($http, $q) {
                 } else {
                     deferred.reject(r);
                 }
+            }, function (errResponse) {
+                deferred.reject(handleTokenResponse(errResponse));
             });
             return deferred.promise;
         },
@@ -475,6 +478,8 @@ function($http, $q) {
                 } else {
                     deferred.reject(r);
                 }
+            }, function (errResponse) {
+                deferred.reject(handleTokenResponse(errResponse));
             });
             return deferred.promise;
         },
@@ -583,17 +588,24 @@ angular.module('secureNgResource')
 .config([
 '$httpProvider',
 function($httpProvider) {$httpProvider.responseInterceptors.push([
-    'authSession',
-    function(authSession) {
-        var responder = function (response) {var ses = authSession.dictionary[response.config.sessionDictKey];
+    'authSession', '$q',
+    function(authSession, $q) {
+        var responder = function(response) {
+            var ses = authSession.dictionary[response.config.sessionDictKey];
             if (ses) {
                 return ses.handleHttpResponse(response);
-            } else {return response;
+            } else {
+                return response;
             }
         };
 
+        var errorResponder = function(response) {
+            response = responder(response);
+            return $q.reject(response);
+        };
+
         return function(promise) {
-            return promise.then(responder, responder);
+            return promise.then(responder, errorResponder);
         };
     }]);
 }]);

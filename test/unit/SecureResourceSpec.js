@@ -77,7 +77,9 @@ describe('SecureResource', function () {
         $httpBackend.expectGET(
             'http://example.com:9001/thing'
         ).respond([{name: 'whatsit', id: 3}]);
+        var called = false;
         var things = resource.query({}, function () {
+            called = true;
             things[0].name = 'whosit';
             $httpBackend.expectPOST(
                 'http://example.com:9001/thing/3',
@@ -93,5 +95,30 @@ describe('SecureResource', function () {
             things[0].$save();
         });
         $httpBackend.flush();
+        expect(called).toBeTruthy();
+    });
+
+    it('correctly resolves successful responses', function () {
+        $httpBackend.expectGET(
+            'http://example.com:9001/thing'
+        ).respond([{name: 'whatsit', id: 3}]);
+        var success = jasmine.createSpy('successCallback');
+        var failure = jasmine.createSpy('failureCallback');
+        resource.query().$promise.then(success, failure);
+        $httpBackend.flush();
+        expect(success).toHaveBeenCalled();
+        expect(failure).not.toHaveBeenCalled();
+    });
+
+    it('correctly rejects unsuccessful responses', function () {
+        $httpBackend.expectGET(
+            'http://example.com:9001/thing'
+        ).respond(500, [{name: 'whatsit', id: 3}]);
+        var success = jasmine.createSpy('successCallback');
+        var failure = jasmine.createSpy('failureCallback');
+        resource.query().$promise.then(success, failure);
+        $httpBackend.flush();
+        expect(success).not.toHaveBeenCalled();
+        expect(failure).toHaveBeenCalled();
     });
 });

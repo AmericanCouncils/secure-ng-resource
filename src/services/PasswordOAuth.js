@@ -18,7 +18,7 @@ function($http, $q) {
         });
         return s;
     };
-    
+
     var handleTokenResponse = function (response) {
         if (
         response.status === 200 &&
@@ -83,6 +83,8 @@ function($http, $q) {
                 } else {
                     deferred.reject(r);
                 }
+            }, function (errResponse) {
+                deferred.reject(handleTokenResponse(errResponse));
             });
             return deferred.promise;
         },
@@ -111,6 +113,8 @@ function($http, $q) {
                 } else {
                     deferred.reject(r);
                 }
+            }, function (errResponse) {
+                deferred.reject(handleTokenResponse(errResponse));
             });
             return deferred.promise;
         },

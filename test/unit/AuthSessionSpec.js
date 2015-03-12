@@ -47,14 +47,9 @@ describe('AuthSession', function () {
         sessionFactory = authSession;
         ses = sessionFactory(auth);
         loc = $location;
-        spyOn(loc, 'path').andCallFake(function(a) {
-            if (a) {
-                return loc; // Path set
-            } else {
-                return '/some/resource'; // Path get
-            }
-        });
-        spyOn(loc, 'replace').andReturn(loc);
+        loc.url("/some/resource");
+        spyOn(loc, 'url').andCallThrough();
+        spyOn(loc, 'replace').andCallThrough();
 
         timeout = $timeout;
         q = $q;
@@ -201,7 +196,7 @@ describe('AuthSession', function () {
         expect(ses.loggedIn()).toEqual(false);
     });
 
-    it('sends a synchronous request to a logout path if there is one', function() {
+    it('sends a synchronous request to a logout url if there is one', function() {
         var ses2 = sessionFactory(auth, {logoutUrl: 'http://example.com:9001/logmeout'});
         ses2.login({user: 'alice', pass: 'swordfish'});
         $scope.$apply();
@@ -220,7 +215,7 @@ describe('AuthSession', function () {
     it('resets location to / after a successful login by default', function () {
         ses.login({user: 'alice', pass: 'swordfish'});
         $scope.$apply();
-        expect(loc.path).toHaveBeenCalledWith('/');
+        expect(loc.url).toHaveBeenCalledWith('/');
         expect(loc.replace).toHaveBeenCalled();
     });
 
@@ -228,7 +223,7 @@ describe('AuthSession', function () {
         var ses2 = sessionFactory(auth, {defaultPostLoginPath: '/foo'});
         ses2.login({user: 'alice', pass: 'swordfish'});
         $scope.$apply();
-        expect(loc.path).toHaveBeenCalledWith('/foo');
+        expect(loc.url).toHaveBeenCalledWith('/foo');
         expect(loc.replace).toHaveBeenCalled();
     });
 
@@ -238,8 +233,7 @@ describe('AuthSession', function () {
         ses.handleHttpResponse({});
         expect(auth.checkResponse).toHaveBeenCalled();
         expect(ses.reset).toHaveBeenCalled();
-        expect(loc.path).toHaveBeenCalledWith('/login');
-        expect(loc.replace).toHaveBeenCalled();
+        expect(loc.url).toHaveBeenCalledWith('/login');
     });
 
     it('does not clear session or reset to login page on non-auth fail', function () {
@@ -247,16 +241,27 @@ describe('AuthSession', function () {
         ses.handleHttpResponse({});
         expect(auth.checkResponse).toHaveBeenCalled();
         expect(ses.reset).not.toHaveBeenCalled();
-        expect(loc.path).not.toHaveBeenCalled();
+        expect(loc.url).not.toHaveBeenCalled();
         expect(loc.replace).not.toHaveBeenCalled();
     });
 
-    it('resets back to original pre-reset path after login', function() {
+    it('returns to original pre-reset path after login', function() {
         auth.checkResponseResult = { authFailure: true };
         ses.handleHttpResponse();
         ses.login({user: 'alice', pass: 'swordfish'});
         $scope.$apply();
-        expect(loc.path).toHaveBeenCalledWith('/some/resource');
+        expect(loc.url).toHaveBeenCalledWith('/some/resource');
+        expect(loc.replace).toHaveBeenCalled();
+    });
+
+    it('does not record login url itself as the pre-reset path', function () {
+        auth.checkResponseResult = { authFailure: true };
+        ses.handleHttpResponse({});
+        expect(loc.url).toHaveBeenCalledWith('/login');
+        ses.handleHttpResponse({}); // simulate a denied http request from the login page itself
+        ses.login({user: 'alice', pass: 'swordfish'});
+        $scope.$apply();
+        expect(loc.url).toHaveBeenCalledWith('/some/resource');
         expect(loc.replace).toHaveBeenCalled();
     });
 
@@ -266,7 +271,7 @@ describe('AuthSession', function () {
         expect(loc.replace.calls.length).toEqual(1);
         ses.logout();
         $scope.$apply();
-        expect(loc.path).toHaveBeenCalledWith('/login');
+        expect(loc.url).toHaveBeenCalledWith('/login');
         expect(loc.replace.calls.length).toEqual(1);
     });
 
@@ -277,7 +282,7 @@ describe('AuthSession', function () {
         expect(loc.replace.calls.length).toEqual(1);
         ses2.logout();
         $scope.$apply();
-        expect(loc.path).toHaveBeenCalledWith('/welcome');
+        expect(loc.url).toHaveBeenCalledWith('/welcome');
         expect(loc.replace.calls.length).toEqual(1);
     });
 

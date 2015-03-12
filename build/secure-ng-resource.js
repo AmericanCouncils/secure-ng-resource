@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 07/22/2014 12:35
+* Compiled At: 03/12/2015 14:00
 ***********************************************/
 (function(window) {
 'use strict';
@@ -67,14 +67,14 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             var me = this;
             return this.auth.checkLogin(credentials).then(function(result) {
                 var tgt = me.settings.defaultPostLoginPath;
-                if (me.state.priorPath) { tgt = me.state.priorPath; }
+                if (me.state.priorUrl) { tgt = me.state.priorUrl; }
 
                 me.state = result.newState;if (!('user' in me.state)) {
                     me.state.user = credentials.user;
                 }
                 me._onStateChange();
 
-                $location.path(tgt).replace();
+                $location.url(tgt).replace();
             });
         },
 
@@ -110,7 +110,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
                 http(httpConf);
             }
             this.reset();
-            $location.path(this.settings.loginPath);
+            this.goToLoginPage();
         },
 
         reset: function () {
@@ -151,24 +151,33 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         handleHttpResponse: function(response) {
             var authResult = this.auth.checkResponse(response);
             if (authResult.authFailure) {
+                var priorPriorUrl = this.state.priorUrl;
                 this.reset();
-                this.state.priorPath = $location.path();
+                if ($location.url() !== this.settings.loginPath) {
+                    this.state.priorUrl = $location.url();
+                } else {
+                    this.state.priorUrl = priorPriorUrl;
+                }
                 this._onStateChange();
-                $location.path(this.settings.loginPath).replace();
+                this.goToLoginPage();
                 return $q.reject(response);
             } else {
                 return response;
             }
         },
 
+        goToLoginPage: function() {
+            $location.url(this.settings.loginPath);
+        },
+
         _onStateChange: function() {
             this.reupdateManagedRequestConfs();
 
-            if (this.state.user) {
-                if (this.settings.useCookies) {
-                    $cookieStore.put(this.cookieKey(), this.state);
-                }
+            if (this.settings.useCookies) {
+                $cookieStore.put(this.cookieKey(), this.state);
+            }
 
+            if (this.state.user) {
                 if (this.refreshPromise !== null) {
                     $timeout.cancel(this.refreshPromise);
                 }
@@ -183,10 +192,6 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
                 if (this.refreshPromise !== null) {
                     $timeout.cancel(this.refreshPromise);
                     this.refreshPromise = null;
-                }
-
-                if (this.settings.useCookies) {
-                    $cookieStore.remove(this.cookieKey());
                 }
             }
         }
@@ -548,7 +553,6 @@ function($document) {
                     value: value
                 }));
             });
-            console.log(form);
             $document.find('body').append(form);
 
             document.getElementById('shimform').submit();

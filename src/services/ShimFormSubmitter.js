@@ -19,7 +19,6 @@ function($document) {
                     value: value
                 }));
             });
-            console.log(form);
             $document.find('body').append(form);
 
             document.getElementById('shimform').submit();

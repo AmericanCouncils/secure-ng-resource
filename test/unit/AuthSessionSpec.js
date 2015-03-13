@@ -47,16 +47,9 @@ describe('AuthSession', function () {
         sessionFactory = authSession;
         ses = sessionFactory(auth);
         loc = $location;
-        var locUrl = "/some/resource";
-        spyOn(loc, 'url').andCallFake(function(u) {
-            if (u) { // Path set
-                locUrl = u;
-                return loc;
-            } else { // Path get
-                return '/some/resource';
-            }
-        });
-        spyOn(loc, 'replace');
+        loc.url("/some/resource");
+        spyOn(loc, 'url').andCallThrough();
+        spyOn(loc, 'replace').andCallThrough();
 
         timeout = $timeout;
         q = $q;

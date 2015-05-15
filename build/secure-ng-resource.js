@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 03/13/2015 12:22
+* Compiled At: 05/15/2015 11:14
 ***********************************************/
 (function(window) {
 'use strict';
@@ -45,6 +45,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             var cookie = $cookieStore.get(this.cookieKey());
             if (cookie) {
                 this.state = cookie;
+                this._onStateChange();
             } else {
                 this.reset();
             }
@@ -177,22 +178,17 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
                 $cookieStore.put(this.cookieKey(), this.state);
             }
 
-            if (this.state.user) {
-                if (this.refreshPromise !== null) {
-                    $timeout.cancel(this.refreshPromise);
-                }
-                if ('millisecondsToRefresh' in this.state) {
-                    var me = this;
-                    this.refreshPromise = $timeout(
-                        function() { me.refreshLogin(); },
-                        this.state.millisecondsToRefresh
-                    );
-                }
-            } else {
-                if (this.refreshPromise !== null) {
-                    $timeout.cancel(this.refreshPromise);
-                    this.refreshPromise = null;
-                }
+            if (this.refreshPromise !== null) {
+                $timeout.cancel(this.refreshPromise);
+                this.refreshPromise = null;
+            }
+
+            if (this.state.millisecondsToRefresh) {
+                var me = this;
+                this.refreshPromise = $timeout(
+                    function() { me.refreshLogin(); },
+                    this.state.millisecondsToRefresh
+                );
             }
         }
     };
@@ -289,10 +285,14 @@ function($q) {
 
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$q', '$rootScope', '$cookieStore', 'shimFormSubmitter', 'simpleCrypt', '$location',
-function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location) {
-    var OpenIDAuth = function (authUrl) {
+'$q', '$rootScope', '$cookieStore', '$http', 'shimFormSubmitter', 'simpleCrypt', '$location',
+function($q, $rootScope, $cookieStore, $http, shimFormSubmitter, simpleCrypt, $location) {
+    var OpenIDAuth = function (authUrl, options) {
         this.authUrl = authUrl;
+
+        options = options || {};
+        this.refreshUrl = options.refreshUrl;
+        this.refreshTime = options.refreshTime;
     };
 
     OpenIDAuth.prototype = {
@@ -322,12 +322,16 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                     $cookieStore.remove('login-key');
                     if (resp.approved) {
                         var sesId = base64.decode(resp.sessionId);
+                        var newState = {
+                            sessionId: simpleCrypt.apply(sesId, key),
+                            user: resp.user || undefined
+                        };
+                        if (this.refreshTime) {
+                            newState.millisecondsToRefresh = this.refreshTime;
+                        }
                         deferred.resolve({
                             status: 'accepted',
-                            newState: {
-                                sessionId: simpleCrypt.apply(sesId, key),
-                                user: resp.user || undefined
-                            }
+                            newState: newState
                         });
                     } else {
                         deferred.reject({
@@ -347,9 +351,25 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
             $cookieStore.remove('login-key');
         },
 
-        refreshLogin: function() {var deferred = $q.defer();
-            deferred.reject();
-            return deferred.promise;
+        refreshLogin: function(state) {
+            if (this.refreshUrl) {
+                var newState = angular.copy(state);
+                var conf = { headers: {} };
+                this.addAuthToRequestConf(conf, state);
+                var result = $http.post(this.refreshUrl, '', conf);
+                var me = this;
+                return result.then(function() {if (me.refreshTime) {
+                        newState.millisecondsToRefresh = me.refreshTime;
+                    } else {
+                        newState.millisecondsToRefresh = null;
+                    }
+                    return {newState: newState};
+                });
+            } else {
+                var deferred = $q.defer();
+                deferred.reject();
+                return deferred.promise;
+            }
         },
 
         checkResponse: function (response) {

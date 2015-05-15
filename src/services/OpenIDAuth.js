@@ -2,10 +2,14 @@
 
 angular.module('secureNgResource')
 .factory('openIDAuth', [
-'$q', '$rootScope', '$cookieStore', 'shimFormSubmitter', 'simpleCrypt', '$location',
-function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location) {
-    var OpenIDAuth = function (authUrl) {
+'$q', '$rootScope', '$cookieStore', '$http', 'shimFormSubmitter', 'simpleCrypt', '$location',
+function($q, $rootScope, $cookieStore, $http, shimFormSubmitter, simpleCrypt, $location) {
+    var OpenIDAuth = function (authUrl, options) {
         this.authUrl = authUrl;
+
+        options = options || {};
+        this.refreshUrl = options.refreshUrl;
+        this.refreshTime = options.refreshTime;
     };
 
     OpenIDAuth.prototype = {
@@ -39,12 +43,16 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
                     $cookieStore.remove('login-key');
                     if (resp.approved) {
                         var sesId = base64.decode(resp.sessionId);
+                        var newState = {
+                            sessionId: simpleCrypt.apply(sesId, key),
+                            user: resp.user || undefined
+                        };
+                        if (this.refreshTime) {
+                            newState.millisecondsToRefresh = this.refreshTime;
+                        }
                         deferred.resolve({
                             status: 'accepted',
-                            newState: {
-                                sessionId: simpleCrypt.apply(sesId, key),
-                                user: resp.user || undefined
-                            }
+                            newState: newState
                         });
                     } else {
                         deferred.reject({
@@ -64,13 +72,28 @@ function($q, $rootScope, $cookieStore, shimFormSubmitter, simpleCrypt, $location
             $cookieStore.remove('login-key');
         },
 
-        refreshLogin: function(/*state*/) {
-            // Currently this just does nothing, our ad-hoc protocol doesn't have explicit timeouts.
-            // TODO: Maybe should do a no-op http request to keep session fresh?
-            // TODO: Or maybe at least return a positive result.
-            var deferred = $q.defer();
-            deferred.reject();
-            return deferred.promise;
+        refreshLogin: function(state) {
+            if (this.refreshUrl) {
+                var newState = angular.copy(state);
+                var conf = { headers: {} };
+                this.addAuthToRequestConf(conf, state);
+                var result = $http.post(this.refreshUrl, '', conf);
+                var me = this;
+                return result.then(function() {
+                    // In case the configured refresh time changed since the state was
+                    // originally created.
+                    if (me.refreshTime) {
+                        newState.millisecondsToRefresh = me.refreshTime;
+                    } else {
+                        newState.millisecondsToRefresh = null;
+                    }
+                    return {newState: newState};
+                });
+            } else {
+                var deferred = $q.defer();
+                deferred.reject();
+                return deferred.promise;
+            }
         },
 
         checkResponse: function (response) {

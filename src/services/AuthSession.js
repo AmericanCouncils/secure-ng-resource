@@ -32,6 +32,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             var cookie = $cookieStore.get(this.cookieKey());
             if (cookie) {
                 this.state = cookie;
+                this._onStateChange();
             } else {
                 this.reset();
             }
@@ -176,22 +177,17 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
                 $cookieStore.put(this.cookieKey(), this.state);
             }
 
-            if (this.state.user) {
-                if (this.refreshPromise !== null) {
-                    $timeout.cancel(this.refreshPromise);
-                }
-                if ('millisecondsToRefresh' in this.state) {
-                    var me = this;
-                    this.refreshPromise = $timeout(
-                        function() { me.refreshLogin(); },
-                        this.state.millisecondsToRefresh
-                    );
-                }
-            } else {
-                if (this.refreshPromise !== null) {
-                    $timeout.cancel(this.refreshPromise);
-                    this.refreshPromise = null;
-                }
+            if (this.refreshPromise !== null) {
+                $timeout.cancel(this.refreshPromise);
+                this.refreshPromise = null;
+            }
+
+            if (this.state.millisecondsToRefresh) {
+                var me = this;
+                this.refreshPromise = $timeout(
+                    function() { me.refreshLogin(); },
+                    this.state.millisecondsToRefresh
+                );
             }
         }
     };

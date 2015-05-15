@@ -11,12 +11,20 @@ describe('OpenIDAuth', function () {
         });
     });
 
-    var $scope, simpleCrypt, auth;
+    var $scope, $httpBackend, simpleCrypt, auth;
     beforeEach(inject(function ($rootScope, $injector, openIDAuth) {
         $scope = $rootScope.$new();
         simpleCrypt = $injector.get('simpleCrypt');
-        auth = openIDAuth('https://example.com/openid_begin');
+        $httpBackend = $injector.get('$httpBackend');
+        auth = openIDAuth('https://example.com/openid_begin', {
+         refreshUrl: 'https://example.com/openid_refresh'
+        });
     }));
+
+    afterEach(function() {
+        $httpBackend.verifyNoOutstandingExpectation();
+        $httpBackend.verifyNoOutstandingRequest();
+    });
 
     it('returns the correct auth type', function () {
         expect(auth.getAuthType()).toEqual('OpenIDAuth');
@@ -106,6 +114,25 @@ describe('OpenIDAuth', function () {
             var httpConf = {headers: {}};
             auth.addAuthToRequestConf(httpConf, state);
             expect(httpConf.headers.Authorization).toEqual('SesID xyz');
+        });
+
+        it('calls refresh url', function () {
+            var state = {};
+            var handler = function(result) {
+                state = result.newState;
+            };
+            phaseTwoResponse({
+                approved: true,
+                sessionId: 'xyz'
+            }).then(handler);
+            $scope.$apply();
+
+            $httpBackend.when(
+                'POST', 'https://example.com/openid_refresh', '',
+                function(headers) { return headers.Authorization == "SesID xyz"; }
+            ).respond(200, {pong: "ok"});
+            auth.refreshLogin(state);
+            $httpBackend.flush();
         });
     });
 

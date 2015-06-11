@@ -57,13 +57,23 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             var me = this;
             return this.auth.checkLogin(credentials).then(function(result) {
                 var tgt = me.settings.defaultPostLoginPath;
-                if (me.state.priorUrl) { tgt = me.state.priorUrl; }
+                var priorIdleUser = me.state.priorIdleUser;
+                if (me.state.priorUrl) {
+                    tgt = me.state.priorUrl;
+                }
 
                 me.state = result.newState;
                 // FIXME This is silly
                 if (!('user' in me.state)) {
                     me.state.user = credentials.user;
                 }
+
+                if (priorIdleUser) {
+                    if (me.state.user !== priorIdleUser) {
+                        tgt = me.settings.defaultPostLoginPath;
+                    }
+                }
+
                 me._onStateChange();
 
                 $location.url(tgt).replace();
@@ -111,6 +121,23 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             }
             this.reset();
             this.goToLoginPage();
+        },
+
+        idleLogout: function () {
+            if (!this.loggedIn()) {
+                return;
+            }
+
+            var origUrl = $location.url();
+            var origUser = this.getUserName();
+
+            this.logout();
+
+            if (origUser) {
+                this.state.priorUrl = origUrl;
+                this.state.priorIdleUser = origUser;
+                this._onStateChange();
+            }
         },
 
         reset: function () {

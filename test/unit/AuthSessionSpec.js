@@ -275,6 +275,32 @@ describe('AuthSession', function () {
         expect(loc.replace.calls.length).toEqual(1);
     });
 
+    it('resumes where the user left off after an idle logout and re-login', function () {
+        ses.login({user: 'alice', pass: 'swordfish'});
+        $scope.$apply();
+        loc.url('/some/path');
+        $scope.$apply();
+        ses.idleLogout();
+        $scope.$apply();
+        ses.login({user: 'alice', pass: 'swordfish'});
+        $scope.$apply();
+        expect(loc.url()).toEqual('/some/path');
+    });
+
+    it('does not resume old path on login of different user after idle logout', function () {
+        auth.checkLoginResult.newState.user = 'alice';
+        ses.login({user: 'alice', pass: 'swordfish'});
+        $scope.$apply();
+        loc.url('/some/path');
+        $scope.$apply();
+        ses.idleLogout();
+        $scope.$apply();
+        auth.checkLoginResult.newState.user = 'bob';
+        ses.login({user: 'bob', pass: 'swordfish'});
+        $scope.$apply();
+        expect(loc.url()).toEqual('/');
+    });
+
     it('can redirect to a custom login page', function () {
         var ses2 = sessionFactory(auth, {loginPath: '/welcome'});
         ses2.login({user: 'alice', pass: 'swordfish'});

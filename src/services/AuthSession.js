@@ -48,6 +48,12 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             }
         },
 
+        getUserId: function () {
+            if (this.loggedIn()) {
+                return this.state.userId;
+            }
+        },
+
         loggedIn: function () {
             // TODO Check for timeout
             return !!(this.state && this.state.user);

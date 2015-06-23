@@ -45,8 +45,11 @@ function($q, $rootScope, $cookieStore, $http, shimFormSubmitter, simpleCrypt, $l
                         var sesId = base64.decode(resp.sessionId);
                         var newState = {
                             sessionId: simpleCrypt.apply(sesId, key),
-                            user: resp.user || undefined
+                            user: resp.user
                         };
+                        if (resp.userId) {
+                            newState.userId = resp.userId;
+                        }
                         if (this.refreshTime) {
                             newState.millisecondsToRefresh = this.refreshTime;
                         }

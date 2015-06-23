@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 06/11/2015 13:36
+* Compiled At: 06/23/2015 10:04
 ***********************************************/
 (function(window) {
 'use strict';
@@ -58,6 +58,12 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         getUserName: function () {
             if (this.loggedIn()) {
                 return this.state.user;
+            }
+        },
+
+        getUserId: function () {
+            if (this.loggedIn()) {
+                return this.state.userId;
             }
         },
 
@@ -351,8 +357,11 @@ function($q, $rootScope, $cookieStore, $http, shimFormSubmitter, simpleCrypt, $l
                         var sesId = base64.decode(resp.sessionId);
                         var newState = {
                             sessionId: simpleCrypt.apply(sesId, key),
-                            user: resp.user || undefined
+                            user: resp.user
                         };
+                        if (resp.userId) {
+                            newState.userId = resp.userId;
+                        }
                         if (this.refreshTime) {
                             newState.millisecondsToRefresh = this.refreshTime;
                         }

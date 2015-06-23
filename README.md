@@ -120,6 +120,7 @@ The login process goes like so:
    * sessionId: (If approved) An authentication token, XOR'd against the key
                 and then itself base64 encoded
    * user: (If approved) The username that the user logged in as
+   * userId: (Optional) The id of the user that logged in (usable in app API requests)
    * message: (Optional) An explanation of what happened during authentication
 
 5. Assuming access was allowed, then from that point forward any

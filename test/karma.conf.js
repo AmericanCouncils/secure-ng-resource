@@ -5,6 +5,7 @@ module.exports = function(config) {
         frameworks: ['jasmine'],
 
         files: [
+            'node_modules/phantomjs-polyfill/bind-polyfill.js',
             'bower_components/angular/angular.js',
             'bower_components/angular-cookies/angular-cookies.js',
             'bower_components/angular-resource/angular-resource.js',

@@ -14,7 +14,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
 
     var sessionDictionary = {};
 
-    var AuthSession = function (auth, settings) {
+    function AuthSession(auth, settings) {
         this.auth = auth;
         this.settings = angular.extend(
             {},
@@ -39,7 +39,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         } else {
             this.reset();
         }
-    };
+    }
 
     AuthSession.prototype = {
         getUserName: function () {
@@ -226,7 +226,8 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
     };
 
     var AuthSessionFactory = function(auth, settings) {
-        return new AuthSession(auth, settings);
+        var as = new AuthSession(auth, settings);
+        return as;
     };
     AuthSessionFactory.dictionary = sessionDictionary;
     return AuthSessionFactory;

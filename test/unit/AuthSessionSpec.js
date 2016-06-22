@@ -59,6 +59,8 @@ describe('AuthSession', function () {
     afterEach(function() {
         $httpBackend.verifyNoOutstandingExpectation();
         $httpBackend.verifyNoOutstandingRequest();
+        cookieStore.remove('foo-spyAuth');
+        cookieStore.remove('angular-spyAuth');
     });
 
     it('has the correct initial state by default', function() {
@@ -116,7 +118,7 @@ describe('AuthSession', function () {
     });
 
     it('denies logins which the authenticator does not approve', function() {
-        auth.checkLoginResult =  { status: 'denied', msg: 'And stay out' };
+        auth.checkLoginResult = { status: 'denied', msg: 'And stay out' };
         ses.login({user: 'alice', pass: 'swordfish'});
         $scope.$apply();
         expect(ses.getUserName()).toBeUndefined();

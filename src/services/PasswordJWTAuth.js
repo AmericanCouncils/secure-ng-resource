@@ -28,15 +28,7 @@ function($http, $q) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
-            $http({
-                method: 'POST',
-                url: this.authUrl,
-                headers: {'Content-Type': 'application/json'},
-                data: JSON.stringify({
-                    'username': credentials.user,
-                    'password': credentials.pass
-                })
-            }).then(function (response) {
+            var handleResponse = function (response) {
                 if (response.status === 200) {
                     deferred.resolve({
                         status: 'accepted',
@@ -54,7 +46,17 @@ function($http, $q) {
                         msg: errMsg
                     });
                 }
-            });
+            };
+
+            $http({
+                method: 'POST',
+                url: this.authUrl,
+                headers: {'Content-Type': 'application/json'},
+                data: JSON.stringify({
+                    'username': credentials.user,
+                    'password': credentials.pass
+                })
+            }).then(handleResponse, handleResponse);
             return deferred.promise;
         },
 
@@ -62,14 +64,7 @@ function($http, $q) {
 
         refreshLogin: function(state) {
             var deferred = $q.defer();
-            $http({
-                method: 'POST',
-                url: this.refreshUrl,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + state.jwt
-                }
-            }).then(function (response) {
+            var handleResponse = function (response) {
                 if (response.status === 200) {
                     deferred.resolve({
                         status: 'accepted',
@@ -78,7 +73,16 @@ function($http, $q) {
                 } else {
                     deferred.reject();
                 }
-            });
+            };
+
+            $http({
+                method: 'POST',
+                url: this.refreshUrl,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + state.jwt
+                }
+            }).then(handleResponse, handleResponse);
             return deferred.promise;
         },
 

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 02/14/2017 14:30
+* Compiled At: 02/14/2017 14:41
 ***********************************************/
 (function(window) {
 'use strict';
@@ -365,8 +365,10 @@ function($http, $q) {
                 url: this.authUrl,
                 headers: {'Content-Type': 'application/json'},
                 data: JSON.stringify({
-                    'username': credentials.user,
-                    'password': credentials.pass
+                    'auth': {
+                        'username': credentials.user,
+                        'password': credentials.pass
+                    }
                 })
             }).then(handleResponse, handleResponse);
             return deferred.promise;

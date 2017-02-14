@@ -97,15 +97,17 @@ A simpler alternative to OAuth is JWT. Your server must have a URL that accepts
 a POST request with a JSON body like so:
 ```js
 {
-    "username": "joe",
-    "password": "coffee"
+    "auth": {
+        "username": "joe",
+        "password": "coffee"
+    }
 }
 ```
 
 And returns a JSON response like so:
 ```js
 {
-    "jwt": "foobarblahblahblahencoded"
+    "jwt": "encodedblahblahblahblah"
 }
 ```
 

@@ -53,8 +53,10 @@ function($http, $q) {
                 url: this.authUrl,
                 headers: {'Content-Type': 'application/json'},
                 data: JSON.stringify({
-                    'username': credentials.user,
-                    'password': credentials.pass
+                    'auth': {
+                        'username': credentials.user,
+                        'password': credentials.pass
+                    }
                 })
             }).then(handleResponse, handleResponse);
             return deferred.promise;

@@ -23,6 +23,7 @@
   "sub": true,
   "globals": {
     "angular": false,
-    "base64": false
+    "base64": false,
+    "jwt_decode": false
   }
 }

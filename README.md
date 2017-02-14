@@ -98,7 +98,7 @@ a POST request with a JSON body like so:
 ```js
 {
     "auth": {
-        "username": "joe",
+        "email": "joe",
         "password": "coffee"
     }
 }
@@ -111,8 +111,11 @@ And returns a JSON response like so:
 }
 ```
 
-Then, you can use `'passwordJWTAuth'` instead of `'passwordOAuth'` above,
-providing the token issue URL.
+The [Knock](https://github.com/nsarno/knock) library makes this pretty easy if
+you're writing a Rails app.
+
+On the client, you can use `'passwordJWTAuth'` instead of `'passwordOAuth'`
+above, providing the token issue URL.
 
 ## Credits
 

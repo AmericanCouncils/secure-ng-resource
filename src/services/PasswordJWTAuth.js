@@ -29,7 +29,7 @@ function($http, $q) {
         checkLogin: function (credentials) {
             var deferred = $q.defer();
             var handleResponse = function (response) {
-                if (response.status === 200) {
+                if (response.status === 200 || response.status === 201) {
                     deferred.resolve({
                         status: 'accepted',
                         newState: newStateFromJWT(response.data['jwt'])
@@ -54,7 +54,7 @@ function($http, $q) {
                 headers: {'Content-Type': 'application/json'},
                 data: JSON.stringify({
                     'auth': {
-                        'username': credentials.user,
+                        'email': credentials.user,
                         'password': credentials.pass
                     }
                 })

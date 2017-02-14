@@ -7,10 +7,9 @@ module.exports = function(config) {
         files: [
             'node_modules/phantomjs-polyfill/bind-polyfill.js',
             'bower_components/angular/angular.js',
-            'bower_components/angular-cookies/angular-cookies.js',
             'bower_components/angular-resource/angular-resource.js',
             'bower_components/angular-mocks/angular-mocks.js',
-            'bower_components/base-64/base64.js',
+            'bower_components/localforage/dist/localforage.js',
             'build/secure-ng-resource.debug.js',
             'test/unit/*Spec.js'
         ],

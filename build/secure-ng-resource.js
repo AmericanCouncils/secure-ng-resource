@@ -2,27 +2,25 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 02/14/2017 11:13
+* Compiled At: 02/14/2017 12:36
 ***********************************************/
 (function(window) {
 'use strict';
 angular.module('secureNgResource', [
-    'ngResource',
-    'ngCookies'
+    'ngResource'
 ]);
 
 'use strict';
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$cookieStore', '$injector', '$rootScope', '$timeout',
-function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
+'$q', '$location', '$injector', '$rootScope', '$timeout',
+function($q, $location, $injector, $rootScope, $timeout) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
         logoutUrl: null,
-        defaultPostLoginPath: '/',
-        useCookies: true
+        defaultPostLoginPath: '/'
     };
 
     var sessionDictionary = {};
@@ -39,19 +37,18 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         this.managedHttpConfs = [];
         this.refreshPromise = null;
 
-        sessionDictionary[this.cookieKey()] = this;
+        sessionDictionary[this.storageKey()] = this;
 
-        if (this.settings.useCookies) {
-            var cookie = $cookieStore.get(this.cookieKey());
-            if (cookie) {
-                this.state = cookie;
-                this._onStateChange();
+        var me = this;
+        localforage.getItem(this.storageKey())
+        .then(function(storedState) {
+            if (storedState) {
+                me.state = storedState;
+                me._onStateChange();
             } else {
-                this.reset();
+                me.reset();
             }
-        } else {
-            this.reset();
-        }
+        });
     }
 
     AuthSession.prototype = {
@@ -152,12 +149,12 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             this._onStateChange();
         },
 
-        cookieKey: function () {
+        storageKey: function () {
             return this.settings.sessionName + '-' + this.auth.getAuthType();
         },
 
         updateRequestConf: function(httpConf) {
-            httpConf.sessionDictKey = this.cookieKey();
+            httpConf.sessionDictKey = this.storageKey();
             if (this.loggedIn()) {
                 if (!httpConf.headers) { httpConf.headers = {}; }
                 this.auth.addAuthToRequestConf(httpConf, this.state);
@@ -207,9 +204,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         _onStateChange: function() {
             this.reupdateManagedRequestConfs();
 
-            if (this.settings.useCookies) {
-                $cookieStore.put(this.cookieKey(), this.state);
-            }
+            localforage.setItem(this.storageKey(), this.state);
 
             if (this.refreshPromise !== null) {
                 $timeout.cancel(this.refreshPromise);
@@ -313,119 +308,6 @@ function($q) {
         return new MockAuth();
     };
     return MockAuthFactory;
-}]);
-
-'use strict';
-
-angular.module('secureNgResource')
-.factory('openIDAuth', [
-'$q', '$rootScope', '$cookieStore', '$http', 'shimFormSubmitter', 'simpleCrypt', '$location',
-function($q, $rootScope, $cookieStore, $http, shimFormSubmitter, simpleCrypt, $location) {
-    var OpenIDAuth = function (authUrl, options) {
-        this.authUrl = authUrl;
-
-        options = options || {};
-        this.refreshUrl = options.refreshUrl;
-        this.refreshTime = options.refreshTime;
-    };
-
-    OpenIDAuth.prototype = {
-        getAuthType: function () {
-            return 'OpenIDAuth';
-        },
-
-        checkLogin: function (credentials) {
-            var deferred = $q.defer();
-
-            if (credentials.openid_identifier) {var newKey = simpleCrypt.generateKey();
-                $cookieStore.put('login-key', {key: newKey});
-                shimFormSubmitter.submit(this.authUrl, {
-                    openid_identifier: credentials.openid_identifier,
-                    key: newKey,
-                    target_url: $location.absUrl()
-                });
-            } else if (credentials.auth_resp) {var keyData = $cookieStore.get('login-key');
-                if (!keyData) {
-                    deferred.reject({
-                        status: 'error',
-                        msg: 'Login failed, decryption key not found'
-                    });
-                } else {
-                    var key = keyData.key;
-                    var resp = JSON.parse(base64.decode(credentials.auth_resp));
-                    $cookieStore.remove('login-key');
-                    if (resp.approved) {
-                        var sesId = base64.decode(resp.sessionId);
-                        var newState = {
-                            sessionId: simpleCrypt.apply(sesId, key),
-                            user: resp.user
-                        };
-                        if (resp.userId) {
-                            newState.userId = resp.userId;
-                        }
-                        if (this.refreshTime) {
-                            newState.millisecondsToRefresh = this.refreshTime;
-                        }
-                        deferred.resolve({
-                            status: 'accepted',
-                            newState: newState
-                        });
-                    } else {
-                        deferred.reject({
-                            status: 'denied',
-                            msg: resp.message || 'Access Denied'
-                        });
-                    }
-                }
-            } else {
-                throw 'Require openid_identifier in credentials';
-            }
-
-            return deferred.promise;
-        },
-
-        cancelLogin: function() {
-            $cookieStore.remove('login-key');
-        },
-
-        refreshLogin: function(state) {
-            if (this.refreshUrl) {
-                var newState = angular.copy(state);
-                var conf = { headers: {} };
-                this.addAuthToRequestConf(conf, state);
-                var result = $http.post(this.refreshUrl, '', conf);
-                var me = this;
-                return result.then(function() {if (me.refreshTime) {
-                        newState.millisecondsToRefresh = me.refreshTime;
-                    } else {
-                        newState.millisecondsToRefresh = null;
-                    }
-                    return {newState: newState};
-                });
-            } else {
-                var deferred = $q.defer();
-                deferred.reject();
-                return deferred.promise;
-            }
-        },
-
-        checkResponse: function (response) {
-            var authResult = {};
-            if (response.status === 401) {
-                authResult.authFailure = true;
-            }
-            return authResult;
-        },
-
-        addAuthToRequestConf: function (httpConf, state) {
-            httpConf.headers.Authorization = 'SesID ' + state.sessionId;
-        }
-    };
-
-    var OpenIDAuthFactory = function(authUrl, loginMode) {
-        return new OpenIDAuth(authUrl, loginMode);
-    };
-    return OpenIDAuthFactory;
 }]);
 
 'use strict';
@@ -689,60 +571,6 @@ function($resource) {
         return res;
     };
 }]);
-
-'use strict';
-
-angular.module('secureNgResource')
-.factory('shimFormSubmitter', [
-'$document',
-function($document) {
-    return {
-        submit: function(url, fields) {
-            var form = angular.element('<form></form>', {
-                id: 'shimform',
-                style: 'display: none',
-                method: 'post',
-                action: url
-            });
-            angular.forEach(fields, function(value, key) {
-                form.prepend(angular.element('<input />', {
-                    type: 'hidden',
-                    name: key,
-                    value: value
-                }));
-            });
-            $document.find('body').append(form);
-
-            document.getElementById('shimform').submit();
-        }
-    };
-}]);
-
-'use strict';
-
-angular.module('secureNgResource')
-.value('simpleCrypt', {
-    generateKey: function() {
-        var key = '';
-        while (key.length < 64) {
-            key += String.fromCharCode(Math.floor(Math.random() * 255));
-        }
-        return base64.encode(key);
-    },
-
-    apply: function(value, key) {
-        key = base64.decode(key);
-        var out = '';
-        for (var i = 0; i < value.length; ++i) {
-            if (i < key.length) {
-                var chr = value.charCodeAt(i) ^ key.charCodeAt(i);out += String.fromCharCode(chr);
-            } else {
-                out += value.charAt(i);
-            }
-        }
-        return out;
-    }
-});
 
 'use strict';
 

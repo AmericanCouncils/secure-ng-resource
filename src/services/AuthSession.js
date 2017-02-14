@@ -2,14 +2,13 @@
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$cookieStore', '$injector', '$rootScope', '$timeout',
-function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
+'$q', '$location', '$injector', '$rootScope', '$timeout',
+function($q, $location, $injector, $rootScope, $timeout) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
         logoutUrl: null,
-        defaultPostLoginPath: '/',
-        useCookies: true
+        defaultPostLoginPath: '/'
     };
 
     var sessionDictionary = {};
@@ -26,19 +25,18 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         this.managedHttpConfs = [];
         this.refreshPromise = null;
 
-        sessionDictionary[this.cookieKey()] = this;
+        sessionDictionary[this.storageKey()] = this;
 
-        if (this.settings.useCookies) {
-            var cookie = $cookieStore.get(this.cookieKey());
-            if (cookie) {
-                this.state = cookie;
-                this._onStateChange();
+        var me = this;
+        localforage.getItem(this.storageKey())
+        .then(function(storedState) {
+            if (storedState) {
+                me.state = storedState;
+                me._onStateChange();
             } else {
-                this.reset();
+                me.reset();
             }
-        } else {
-            this.reset();
-        }
+        });
     }
 
     AuthSession.prototype = {
@@ -151,12 +149,12 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
             this._onStateChange();
         },
 
-        cookieKey: function () {
+        storageKey: function () {
             return this.settings.sessionName + '-' + this.auth.getAuthType();
         },
 
         updateRequestConf: function(httpConf) {
-            httpConf.sessionDictKey = this.cookieKey();
+            httpConf.sessionDictKey = this.storageKey();
             if (this.loggedIn()) {
                 if (!httpConf.headers) { httpConf.headers = {}; }
                 this.auth.addAuthToRequestConf(httpConf, this.state);
@@ -206,9 +204,7 @@ function($q, $location, $cookieStore, $injector, $rootScope, $timeout) {
         _onStateChange: function() {
             this.reupdateManagedRequestConfs();
 
-            if (this.settings.useCookies) {
-                $cookieStore.put(this.cookieKey(), this.state);
-            }
+            localforage.setItem(this.storageKey(), this.state);
 
             if (this.refreshPromise !== null) {
                 $timeout.cancel(this.refreshPromise);

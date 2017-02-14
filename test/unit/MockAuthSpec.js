@@ -1,6 +1,6 @@
 'use strict';
 
-describe('OpenIDAuth', function () {
+describe('MockAuth', function () {
     beforeEach(module('secureNgResource'));
 
     var $scope, $httpBackend, auth, fakeInputElement, fakeFormElement, fakeDocument;

@@ -3,8 +3,8 @@
 describe('AuthSession', function () {
     beforeEach(module('secureNgResource'));
 
-    var $scope, $httpBackend, sessionFactory, ses, auth, loc, timeout, q, cookieStore;
-    beforeEach(inject(function ($rootScope, $injector, authSession, $location, $timeout, $q, $cookieStore) {
+    var $scope, $httpBackend, sessionFactory, ses, auth, loc, timeout, q;
+    beforeEach(inject(function ($rootScope, $injector, authSession, $location, $timeout, $q) {
         $scope = $rootScope.$new();
         $httpBackend = $injector.get('$httpBackend');
 
@@ -53,60 +53,65 @@ describe('AuthSession', function () {
 
         timeout = $timeout;
         q = $q;
-        cookieStore = $cookieStore;
     }));
 
     afterEach(function() {
         $httpBackend.verifyNoOutstandingExpectation();
         $httpBackend.verifyNoOutstandingRequest();
-        cookieStore.remove('foo-spyAuth');
-        cookieStore.remove('angular-spyAuth');
+        localforage.removeItem('foo-spyAuth');
+        localforage.removeItem('angular-spyAuth');
     });
 
     it('has the correct initial state by default', function() {
         expect(ses.getUserName()).toBeUndefined();
         expect(ses.loggedIn()).toEqual(false);
-        expect(ses.cookieKey()).toEqual('angular-spyAuth');
+        expect(ses.storageKey()).toEqual('angular-spyAuth');
     });
 
-    it('can use a custom cookie key', function () {
+    it('can use a custom storage key', function () {
         var ses2 = sessionFactory(auth, {sessionName: 'foo'});
-        expect(ses2.cookieKey()).toEqual('foo-spyAuth');
+        expect(ses2.storageKey()).toEqual('foo-spyAuth');
     });
 
-    it('caches and retrieves session state with a cookie', function () {
-        expect(cookieStore.get('foo-spyAuth')).toBeUndefined();
-        var ses2 = sessionFactory(auth, {sessionName: 'foo'});
-        ses2.login({});
-        $scope.$apply();
-        var ses2cookie = cookieStore.get('foo-spyAuth');
-        expect(ses2cookie.user).toEqual('someone');
+    it('caches and retrieves session state with localforage', function () {
+        var r1, r2;
+        var ready = false;
 
-        ses2cookie.user = 'someone_else';
-        cookieStore.put('foo-spyAuth', ses2cookie);
-        var ses2redux = sessionFactory(auth, {sessionName: 'foo'});
-        ses2redux.login({});
-        expect(ses2redux.getUserName()).toEqual('someone_else');
-    });
+        runs(function() {
+            localforage.getItem('foo-spyAuth')
+            .then(function (result) {
+                r1 = result;
+                var ses2 = sessionFactory(auth, {sessionName: 'foo'});
+                ses2.login({});
+                $scope.$apply();
+                return localforage.getItem('foo-spyAuth');
+            }).then(function (ses2storage) {
+                r2 = ses2storage;
+                ready = true;
+            })
+        });
 
-    it('will not save cookies if useCookies setting disabled', function () {
-        var ses2 = sessionFactory(auth, {sessionName: 'foo', useCookies: false});
-        ses2.login({}); // spyAuth doesn't actually need any credentials
-        $scope.$apply();
-        var ses2cookie = cookieStore.get('foo-spyAuth');
-        expect(ses2cookie).toBeUndefined();
-    });
+        waitsFor(function() { return ready; });
 
-    it('loads state frome cookies by default', function () {
-        cookieStore.put('foo-spyAuth', {user: 'alice'});
-        var ses2 = sessionFactory(auth, {sessionName: 'foo'});
-        expect(ses2.loggedIn()).toEqual(true);
-    });
+        runs(function() {
+            expect(r1).toBeNull();
+            expect(r2.user).toEqual('someone');
+        });
+   });
 
-    it('will not load state from cookies if useCookies setting disabled', function () {
-        cookieStore.put('foo-spyAuth', {user: 'alice'});
-        var ses2 = sessionFactory(auth, {sessionName: 'foo', useCookies: false});
-        expect(ses2.loggedIn()).toEqual(false);
+    it('loads state from localforage by default', function () {
+        var r;
+        var ready = false;
+
+        runs(function() {
+            localforage.setItem('foo-spyAuth', {user: 'alice'})
+            .then(function (result) {
+                r = sessionFactory(auth, {sessionName: 'foo'});
+                ready = true;
+            })
+        });
+
+        waitsFor(function() { return ready && r.loggedIn(); });
     });
 
     it('accepts logins which the authenticator approves', function() {
@@ -330,12 +335,12 @@ describe('AuthSession', function () {
     it('always attaches key to request configs', function () {
         var httpConf = {};
         ses.manageRequestConf(httpConf);
-        expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
+        expect(httpConf.sessionDictKey).toEqual(ses.storageKey());
         ses.login({user: 'alice', pass: 'swordfish'});
         $scope.$apply();
-        expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
+        expect(httpConf.sessionDictKey).toEqual(ses.storageKey());
         ses.reset();
         $scope.$apply();
-        expect(httpConf.sessionDictKey).toEqual(ses.cookieKey());
+        expect(httpConf.sessionDictKey).toEqual(ses.storageKey());
     });
 });

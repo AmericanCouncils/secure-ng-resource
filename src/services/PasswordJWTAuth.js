@@ -59,7 +59,7 @@ function($http, $q) {
             var deferred = $q.defer();
             var me = this;
             var handleResponse = function (response) {
-                if (response.status === 200) {
+                if (response.status === 200 || response.status === 201) {
                     deferred.resolve({
                         status: 'accepted',
                         newState: me._newStateFromJWT(response.data['jwt'])

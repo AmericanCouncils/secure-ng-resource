@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 02/15/2017 12:04
+* Compiled At: 02/15/2017 12:47
 ***********************************************/
 (function(window) {
 'use strict';
@@ -383,7 +383,7 @@ function($http, $q) {
             var deferred = $q.defer();
             var me = this;
             var handleResponse = function (response) {
-                if (response.status === 200) {
+                if (response.status === 200 || response.status === 201) {
                     deferred.resolve({
                         status: 'accepted',
                         newState: me._newStateFromJWT(response.data['jwt'])

@@ -18,11 +18,12 @@ function($http, $q) {
 
         checkLogin: function (credentials) {
             var deferred = $q.defer();
+            var me = this;
             var handleResponse = function (response) {
                 if (response.status === 200 || response.status === 201) {
                     deferred.resolve({
                         status: 'accepted',
-                        newState: this._newStateFromJWT(response.data['jwt'])
+                        newState: me._newStateFromJWT(response.data['jwt'])
                     });
                 } else {
                     var errMsg;
@@ -56,11 +57,12 @@ function($http, $q) {
 
         refreshLogin: function(state) {
             var deferred = $q.defer();
+            var me = this;
             var handleResponse = function (response) {
                 if (response.status === 200) {
                     deferred.resolve({
                         status: 'accepted',
-                        newState: this._newStateFromJWT(response.data['jwt'])
+                        newState: me._newStateFromJWT(response.data['jwt'])
                     });
                 } else {
                     deferred.reject();

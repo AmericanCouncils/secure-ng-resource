@@ -98,7 +98,7 @@ a POST request with a JSON body like so:
 ```js
 {
     "auth": {
-        "email": "joe",
+        "email": "joe@domain.com",
         "password": "coffee"
     }
 }

@@ -2,8 +2,8 @@
 
 angular.module('secureNgResource')
 .factory('authSession', [
-'$q', '$location', '$injector', '$rootScope', '$timeout',
-function($q, $location, $injector, $rootScope, $timeout) {
+'$q', '$location', '$injector', '$rootScope', '$timeout', '$window',
+function($q, $location, $injector, $rootScope, $timeout, $window) {
     var DEFAULT_SETTINGS = {
         sessionName: 'angular',
         loginPath: '/login',
@@ -27,16 +27,17 @@ function($q, $location, $injector, $rootScope, $timeout) {
 
         sessionDictionary[this.storageKey()] = this;
 
-        var me = this;
-        localforage.getItem(this.storageKey())
-        .then(function(storedState) {
+        if (this._canUseLocalStorage()) {
+            var storedState = $window.localStorage.getItem(this.storageKey());
             if (storedState) {
-                me.state = storedState;
-                me._onStateChange();
+                this.state = JSON.parse(storedState);
+                this._onStateChange();
             } else {
-                me.reset();
+                this.reset();
             }
-        });
+        } else {
+            this.reset();
+        }
     }
 
     AuthSession.prototype = {
@@ -204,7 +205,9 @@ function($q, $location, $injector, $rootScope, $timeout) {
         _onStateChange: function() {
             this.reupdateManagedRequestConfs();
 
-            localforage.setItem(this.storageKey(), this.state);
+            if (this._canUseLocalStorage) {
+                $window.localStorage.setItem(this.storageKey(), JSON.stringify(this.state));
+            }
 
             if (this.refreshPromise !== null) {
                 $timeout.cancel(this.refreshPromise);
@@ -217,6 +220,17 @@ function($q, $location, $injector, $rootScope, $timeout) {
                     function() { me.refreshLogin(); },
                     this.state.millisecondsToRefresh
                 );
+            }
+        },
+
+        _canUseLocalStorage: function() {
+            try {
+                var x = '__storage_test__';
+                $window.localStorage.setItem(x, x);
+                $window.localStorage.removeItem(x);
+                return true;
+            } catch(e) {
+                return false;
             }
         }
     };

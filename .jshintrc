@@ -23,7 +23,6 @@
   "sub": true,
   "globals": {
     "angular": false,
-    "jwt_decode": false,
-    "localforage": false
+    "jwt_decode": false
   }
 }

@@ -58,8 +58,8 @@ describe('AuthSession', function () {
     afterEach(function() {
         $httpBackend.verifyNoOutstandingExpectation();
         $httpBackend.verifyNoOutstandingRequest();
-        localforage.removeItem('foo-spyAuth');
-        localforage.removeItem('angular-spyAuth');
+        window.localStorage.removeItem('foo-spyAuth');
+        window.localStorage.removeItem('angular-spyAuth');
     });
 
     it('has the correct initial state by default', function() {
@@ -73,45 +73,20 @@ describe('AuthSession', function () {
         expect(ses2.storageKey()).toEqual('foo-spyAuth');
     });
 
-    it('caches and retrieves session state with localforage', function () {
-        var r1, r2;
-        var ready = false;
-
-        runs(function() {
-            localforage.getItem('foo-spyAuth')
-            .then(function (result) {
-                r1 = result;
-                var ses2 = sessionFactory(auth, {sessionName: 'foo'});
-                ses2.login({});
-                $scope.$apply();
-                return localforage.getItem('foo-spyAuth');
-            }).then(function (ses2storage) {
-                r2 = ses2storage;
-                ready = true;
-            })
-        });
-
-        waitsFor(function() { return ready; });
-
-        runs(function() {
-            expect(r1).toBeNull();
-            expect(r2.user).toEqual('someone');
-        });
+    it('caches and retrieves session state with local storage', function () {
+        expect(window.localStorage.getItem('foo-spyAuth')).toBeNull();
+        var ses2 = sessionFactory(auth, {sessionName: 'foo'});
+        ses2.login({});
+        $scope.$apply();
+        var stored = JSON.parse(window.localStorage.getItem('foo-spyAuth'));
+        expect(stored.user).toEqual('someone');
    });
 
-    it('loads state from localforage by default', function () {
-        var r;
-        var ready = false;
-
-        runs(function() {
-            localforage.setItem('foo-spyAuth', {user: 'alice'})
-            .then(function (result) {
-                r = sessionFactory(auth, {sessionName: 'foo'});
-                ready = true;
-            })
-        });
-
-        waitsFor(function() { return ready && r.loggedIn(); });
+    it('loads state from local storage by default', function () {
+        window.localStorage.setItem('foo-spyAuth', JSON.stringify({user: 'alice'}))
+        var ses = sessionFactory(auth, {sessionName: 'foo'});
+        expect(ses.loggedIn()).toBeTruthy();
+        expect(ses.getUserName()).toEqual('alice');
     });
 
     it('accepts logins which the authenticator approves', function() {

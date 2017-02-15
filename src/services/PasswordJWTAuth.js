@@ -11,18 +11,6 @@ function($http, $q) {
         this.refreshUrl = options.refreshUrl;
     };
 
-    var newStateFromJWT = function (jwt_raw) {
-        var jwt = jwt_decode(jwt_raw);
-        var newState = {
-            jwt: jwt_raw,
-            userId: jwt.sub
-        };
-        if (this.refreshUrl) {
-            newState['millisecondsToRefresh'] = 1000*60*15; //  15 minutes
-        }
-        return newState;
-    };
-
     PasswordJWTAuth.prototype = {
         getAuthType: function () {
             return 'PasswordJWTAuth';
@@ -34,7 +22,7 @@ function($http, $q) {
                 if (response.status === 200 || response.status === 201) {
                     deferred.resolve({
                         status: 'accepted',
-                        newState: newStateFromJWT(response.data['jwt'])
+                        newState: this._newStateFromJWT(response.data['jwt'])
                     });
                 } else {
                     var errMsg;
@@ -72,7 +60,7 @@ function($http, $q) {
                 if (response.status === 200) {
                     deferred.resolve({
                         status: 'accepted',
-                        newState: newStateFromJWT(response.data['jwt'])
+                        newState: this._newStateFromJWT(response.data['jwt'])
                     });
                 } else {
                     deferred.reject();
@@ -100,6 +88,18 @@ function($http, $q) {
 
         addAuthToRequestConf: function (httpConf, state) {
             httpConf.headers.Authorization = 'Bearer ' + state.jwt;
+        },
+
+        _newStateFromJWT: function (jwt_raw) {
+            var jwt = jwt_decode(jwt_raw);
+            var newState = {
+                jwt: jwt_raw,
+                userId: jwt.sub
+            };
+            if (this.refreshUrl) {
+                newState['millisecondsToRefresh'] = 1000*60*15; //  15 minutes
+            }
+            return newState;
         }
     };
 

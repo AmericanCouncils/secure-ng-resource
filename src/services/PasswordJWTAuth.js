@@ -13,12 +13,14 @@ function($http, $q) {
 
     var newStateFromJWT = function (jwt_raw) {
         var jwt = jwt_decode(jwt_raw);
-        var ms_to_expiration = jwt.exp*1000 - Date.now();
-        return {
+        var newState = {
             jwt: jwt_raw,
-            userId: jwt.sub,
-            millisecondsToRefresh: ms_to_expiration/2
+            userId: jwt.sub
         };
+        if (this.refreshUrl) {
+            newState['millisecondsToRefresh'] = 1000*60*15; //  15 minutes
+        }
+        return newState;
     };
 
     PasswordJWTAuth.prototype = {

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 02/15/2017 11:19
+* Compiled At: 02/15/2017 11:33
 ***********************************************/
 (function(window) {
 'use strict';
@@ -36,7 +36,6 @@ function($q, $location, $injector, $rootScope, $timeout, $window) {
         this.state = {};
         this.managedHttpConfs = [];
         this.refreshPromise = null;
-        this.ready = false;
 
         sessionDictionary[this.storageKey()] = this;
 
@@ -54,10 +53,6 @@ function($q, $location, $injector, $rootScope, $timeout, $window) {
     }
 
     AuthSession.prototype = {
-        isReady: function () {
-            return this.ready;
-        },
-
         getUserName: function () {
             if (this.loggedIn()) {
                 return this.state.user;
@@ -344,12 +339,13 @@ function($http, $q) {
 
     var newStateFromJWT = function (jwt_raw) {
         var jwt = jwt_decode(jwt_raw);
-        var ms_to_expiration = jwt.exp*1000 - Date.now();
-        return {
+        var newState = {
             jwt: jwt_raw,
-            userId: jwt.sub,
-            millisecondsToRefresh: ms_to_expiration/2
+            userId: jwt.sub
         };
+        if (this.refreshUrl) {
+            newState['millisecondsToRefresh'] = 1000*60*15;}
+        return newState;
     };
 
     PasswordJWTAuth.prototype = {

@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 02/15/2017 12:47
+* Compiled At: 02/16/2017 11:01
 ***********************************************/
 (function(window) {
 'use strict';
@@ -355,8 +355,10 @@ function($http, $q) {
                     var errMsg;
                     if (response.status === 404) {
                         errMsg = 'Invalid user or password';
+                    } else if (response.data && response.data['error']) {
+                        errMsg = response.data['error'];
                     } else {
-                        errMsg = response.data['error'] || 'Server error';
+                        errMsg = 'Server error';
                     }
                     deferred.reject({
                         status: 'denied',

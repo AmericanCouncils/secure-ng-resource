@@ -29,8 +29,10 @@ function($http, $q) {
                     var errMsg;
                     if (response.status === 404) {
                         errMsg = 'Invalid user or password';
+                    } else if (response.data && response.data['error']) {
+                        errMsg = response.data['error'];
                     } else {
-                        errMsg = response.data['error'] || 'Server error';
+                        errMsg = 'Server error';
                     }
                     deferred.reject({
                         status: 'denied',

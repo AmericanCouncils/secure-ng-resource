@@ -2,7 +2,7 @@
 * secure-ng-resource JavaScript Library
 * https://github.com/AmericanCouncils/secure-ng-resource/ 
 * License: MIT (http://www.opensource.org/licenses/mit-license.php)
-* Compiled At: 02/16/2017 11:01
+* Compiled At: 02/17/2017 09:34
 ***********************************************/
 (function(window) {
 'use strict';
@@ -418,15 +418,20 @@ function($http, $q) {
             httpConf.headers.Authorization = 'Bearer ' + state.jwt;
         },
 
-        _newStateFromJWT: function (jwt_raw) {
-            var jwt = jwt_decode(jwt_raw);
+        _newStateFromJWT: function (jwtRaw) {
+            var jwt = this._jwtDecode(jwtRaw);
             var newState = {
-                jwt: jwt_raw,
+                jwt: jwtRaw,
                 userId: jwt.sub
             };
             if (this.refreshUrl) {
                 newState['millisecondsToRefresh'] = 1000*60*15;}
             return newState;
+        },
+
+        _jwtDecode: function(jwtRaw) {
+            var b64 = jwtRaw.split('.')[1].replace('-', '+').replace('_','/');
+            return JSON.parse(base64.decode(b64));
         }
     };
 

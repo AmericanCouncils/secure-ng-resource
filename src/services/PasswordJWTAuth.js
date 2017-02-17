@@ -94,16 +94,21 @@ function($http, $q) {
             httpConf.headers.Authorization = 'Bearer ' + state.jwt;
         },
 
-        _newStateFromJWT: function (jwt_raw) {
-            var jwt = jwt_decode(jwt_raw);
+        _newStateFromJWT: function (jwtRaw) {
+            var jwt = this._jwtDecode(jwtRaw);
             var newState = {
-                jwt: jwt_raw,
+                jwt: jwtRaw,
                 userId: jwt.sub
             };
             if (this.refreshUrl) {
                 newState['millisecondsToRefresh'] = 1000*60*15; //  15 minutes
             }
             return newState;
+        },
+
+        _jwtDecode: function(jwtRaw) {
+            var b64 = jwtRaw.split('.')[1].replace('-', '+').replace('_','/');
+            return JSON.parse(base64.decode(b64));
         }
     };
 
